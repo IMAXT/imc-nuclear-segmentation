@@ -10,7 +10,7 @@ requirements = [
     'dask',
     'distributed',
     'voluptuous',
-    'py-opencv',
+    'opencv-python',
     'numpy',
     'scipy',
     'scikit-image',
