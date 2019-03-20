@@ -6,7 +6,17 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['dask', 'distributed', 'voluptuous']
+requirements = [
+    'dask',
+    'distributed',
+    'voluptuous',
+    'py-opencv',
+    'numpy',
+    'scipy',
+    'scikit-image',
+    'astropy',
+    'pillow',
+]
 
 setup_requirements = ['pytest-runner', 'flake8']
 

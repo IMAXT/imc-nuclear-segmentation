@@ -1,109 +1,96 @@
-# general
-import glob
-import os
+import logging
 import time
+from pathlib import Path
 
-import yaml
 from dask import delayed
+from distributed import Client, as_completed
 
-# paralellization
-from distributed import Client, LocalCluster, as_completed
+from imc_pipeline import imcutil
 
-import imc_packages as imcutil
+log = logging.getLogger('owl.daemon.pipeline')
 
 
 def main(
     ref_channel=None,
     normalized_factor=None,
-    imgFormat=None,
-    imgFormatOut=None,
-    catFormat=None,
-    imgPath=None,
+    img_format=None,
+    img_format_out=None,
+    cat_format=None,
+    img_path=None,
     output_key=None,
     output_key_ref=None,
     output_key_mask=None,
     output_key_cat=None,
-    n_workers_param=None,
-    memory_limit_param=None,
 ):
-    """IMC segmentation
-    
+    """IMC segmentation pipeline
+
     Parameters
     ----------
-    ref_channel
-        Reference channel
-    normalized_factor
-        Normalization facator
+    ref_channel : [type], optional
+        [description] (the default is None, which [default_description])
+    normalized_factor : [type], optional
+        [description] (the default is None, which [default_description])
+    imgFormat : [type], optional
+        [description] (the default is None, which [default_description])
+    imgFormatOut : [type], optional
+        [description] (the default is None, which [default_description])
+    catFormat : [type], optional
+        [description] (the default is None, which [default_description])
+    imgPath : [type], optional
+        [description] (the default is None, which [default_description])
+    output_key : [type], optional
+        [description] (the default is None, which [default_description])
+    output_key_ref : [type], optional
+        [description] (the default is None, which [default_description])
+    output_key_mask : [type], optional
+        [description] (the default is None, which [default_description])
+    output_key_cat : [type], optional
+        [description] (the default is None, which [default_description])
     """
-    # time
-    os.system('clear')
+    # TODO: Complete the docstring
+    start_total = time.monotonic()
 
-    start_total = time.time()
+    client = Client.current()
 
-    print('\n\t ** START ** \n')
+    log.info('Starting IMC pipeline.')
 
-    # # i/o parameters
-    # imgFormat = '.tiff'
-    # imgFormatOut = '.jpg'
-    # catFormat = '.fits'
-    # imgPath = 'DATA02__3D_stpt_IMC' #'DATA03__Dimitra_IMC_data' # 'test_image_IMC' 'DATA02__3D_stpt_IMC' #'DATA01__bodenmiller_data'
+    img_path = Path(img_path)
+    if not img_path.exists():
+        raise FileNotFoundError(img_path)
 
-    imgList = glob.glob(imgPath + '/*' + imgFormat)
-
-    # subject to the sample to be analyzed
-    # ref_channel = 37       # Dimitri data: 37 ; IMC: 25 # from investigation done using FIJI
-    # normalized_factor = 10 # Dimitri date: 10 ; IMC: 30 # try and error
+    img_list = img_path.glob(f'*{img_format}')
 
     # location of output products
-    outputPath = imgPath + output_key  # "/output/"
-    outputPath_ref = outputPath + output_key_ref  # "/reference/"
-    outputPath_mask = outputPath + output_key_mask  # "/mask/"
-    outputPath_cat = outputPath + output_key_cat  # "/catalog/"
+    output_path = img_path / output_key
+    output_path_ref = output_path / output_key_ref
+    output_path_mask = output_path / output_key_mask
+    output_path_cat = output_path / output_key_cat
 
-    if not os.path.exists(outputPath):
-        os.makedirs(outputPath)
-    if not os.path.exists(outputPath_ref):
-        os.makedirs(outputPath_ref)
-    if not os.path.exists(outputPath_mask):
-        os.makedirs(outputPath_mask)
-    if not os.path.exists(outputPath_cat):
-        os.makedirs(outputPath_cat)
+    output_path.mkdir(exist_ok=True)
+    output_path_ref.mkdir(exist_ok=True)
+    output_path_mask.mkdir(exist_ok=True)
+    output_path_cat.mkdir(exist_ok=True)
 
-    with LocalCluster(
-        processes=True, n_workers=n_workers_param, memory_limit=memory_limit_param
-    ) as cluster:  # use to minotir http://127.0.0.1:8787/status
-        # with LocalCluster(processes=True, n_workers = 20, memory_limit = '10GB') as cluster: # use to minotir http://127.0.0.1:8787/status
-        # with LocalCluster(processes=True, diagnostics_port=8787) as cluster:
-        with Client(cluster) as client:
-            futures = []
-            for img_file in imgList:
-                res = delayed(imcutil.process_image)(
-                    img_file,
-                    ref_channel,
-                    normalized_factor,
-                    outputPath_ref,
-                    outputPath_mask,
-                    outputPath_cat,
-                    imgFormat,
-                    imgFormatOut,
-                    catFormat,
-                )
-                fut = client.compute(res)
-                futures.append(fut)
+    futures = []
+    for img_file in img_list:
+        res = delayed(imcutil.process_image)(
+            img_file,
+            ref_channel,
+            normalized_factor,
+            output_path_ref,
+            output_path_mask,
+            output_path_cat,
+            img_format,
+            img_format_out,
+            cat_format,
+        )
+        fut = client.compute(res)
+        futures.append(fut)
 
-            for fut in as_completed(futures):
-                print(fut.result())
+    for fut in as_completed(futures):
+        print(fut.result())
 
-    # report total time
-    end = time.time()
-    print('\t Total processing time %.3f s\n' % ((end - start_total)))
+    end = time.monotonic()
+    log.info('Total processing time %.3f s', end - start_total)
 
-    print('\n\t ** FINISH ** \n')
-
-
-# -----------------------------------------------------------------------------------------------------------------------------------
-
-if __name__ == '__main__':
-    config = yaml.safe_load(open('imc_config.yaml'))
-    print(config)
-    main(**config)
+    log.info('IMC pipeline finished.')

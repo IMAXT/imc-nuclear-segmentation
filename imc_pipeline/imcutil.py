@@ -1,43 +1,42 @@
-# import numpy as np
-# from scipy.misc import bytescale
-# import cv2
-
-
-import glob
+import logging
 import ntpath
 import os
 import random
-import sys
-import time
 
 import numpy as np
-import yaml
 from astropy.table import Table
-from dask import delayed
-# paralellization
-from distributed import Client, LocalCluster, as_completed
 from PIL import Image
 from scipy import ndimage
-from scipy.misc import \
-    bytescale  # convert 16bit -> 8bit (deprecated in scipy 1.2.0)
+from scipy.misc import bytescale
 from scipy.ndimage.filters import gaussian_filter
 from scipy.sparse import csr_matrix
-# watershed segmentation
 from skimage.feature import peak_local_max
 from skimage.morphology import watershed
 
-# i/o - segmentation
 import cv2
-import imc_packages as imcutil
 
+from .contour import Contour
 
-"""
-########################################### I M C    F U N C T I O N S    S T A R T  ##############################################
-"""
+log = logging.getLogger('owl.daemon.pipeline')
 
 
 def get_cnt_mask(cluster_index, sp_arr, labels_shape):
-    # time.sleep(1)
+    """[summary]
+
+    Parameters
+    ----------
+    cluster_index : [type]
+        [description]
+    sp_arr : [type]
+        [description]
+    labels_shape : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     cnt_y_index, cnt_x_index = np.unravel_index(
         sp_arr.indices[sp_arr.data == cluster_index], labels_shape
     )
@@ -61,7 +60,20 @@ def get_cnt_mask(cluster_index, sp_arr, labels_shape):
 
 
 def get_contour_in_mask(cnt_mask, cnt_topLeft_P):
+    """[summary]
 
+    Parameters
+    ----------
+    cnt_mask : [type]
+        [description]
+    cnt_topLeft_P : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     # detect contours in the cnt_mask and grab the largest one
     cnts = cv2.findContours(cnt_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[
         -2
@@ -77,7 +89,18 @@ def get_contour_in_mask(cnt_mask, cnt_topLeft_P):
 
 
 def get_feature_table(n_valid_cnt=0):
+    """[summary]
 
+    Parameters
+    ----------
+    n_valid_cnt : int, optional
+        [description] (the default is 0, which [default_description])
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     # initialize number of elements
 
     # positional parameters
@@ -301,6 +324,32 @@ def get_feature_table(n_valid_cnt=0):
 def extract_features_and_update_catalog(
     img_16bit, cnt, t_final, n_cell, minCntLength, imgW, imgH, all_frames
 ):
+    """[summary]
+
+    Parameters
+    ----------
+    img_16bit : [type]
+        [description]
+    cnt : [type]
+        [description]
+    t_final : [type]
+        [description]
+    n_cell : [type]
+        [description]
+    minCntLength : [type]
+        [description]
+    imgW : [type]
+        [description]
+    imgH : [type]
+        [description]
+    all_frames : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
 
     # constants
     minPixVal, maxPixVal = 0, 255
@@ -317,7 +366,7 @@ def extract_features_and_update_catalog(
     if len(cnt) >= minCntLength:
 
         # create a contour object
-        c = imcutil.Contour(cnt)
+        c = Contour(cnt)
 
         # ellipse = cv2.fitEllipse(c)
         # (x, y), (MA, ma), angle = ellipse
@@ -421,8 +470,8 @@ def extract_features_and_update_catalog(
                 # extract flux from all available channels
                 for ch_index in range(len(all_frames)):
                     crop_src = all_frames[ch_index][
-                        yRect - n_buff : (yRect + hRect + n_buff),
-                        xRect - n_buff : (xRect + wRect + n_buff),
+                        (yRect - n_buff) : (yRect + hRect + n_buff),
+                        (xRect - n_buff) : (xRect + wRect + n_buff),
                     ]
                     t_final[flux_feature_columns[ch_index]][n_cell] = cv2.mean(
                         crop_src, mask=mask_fast
@@ -436,14 +485,30 @@ def extract_features_and_update_catalog(
 
 
 def random_color():
-    r = lambda: random.randint(0, 255)
-    # rgbl=[255,0,0]
-    # random.shuffle(rgbl)
-    return (r(), r(), r())
+    """[summary]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+
+    return [random.randint(0, 255) for i in range(3)]
 
 
 def get_binary_image(img_8bit):
+    """[summary]
 
+    Parameters
+    ----------
+    img_8bit : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     maxPixVal = 2 ** 8 - 1
 
     # denoise image
@@ -470,19 +535,20 @@ def get_binary_image(img_8bit):
 
 
 def apply_wShed_and_get_cluster_labels(img_8bit, img_binary):
+    """Watershed segmentation
 
-    """
-    # ----------------------------------------------------------------------------------------------------               
-    #                            W A T E R S H E D      S E G M E N T A T I O N  ( START )
-    # ----------------------------------------------------------------------------------------------------
-    
-    
-    
-    # compute the exact Euclidean distance from every binary
-    # pixel to the nearest zero pixel, then find peaks in this
-    # distance map
-    """
+    Parameters
+    ----------
+    img_8bit : [type]
+        [description]
+    img_binary : [type]
+        [description]
 
+    Returns
+    -------
+    [type]
+        [description]
+    """
     img_binary = get_binary_image(img_8bit)
 
     D = ndimage.distance_transform_edt(img_binary)
@@ -501,15 +567,29 @@ def apply_wShed_and_get_cluster_labels(img_8bit, img_binary):
 
 # preparing the final output catalog
 def create_t_final(labels, img_16bit, all_frames):
+    """[summary]
 
+    Parameters
+    ----------
+    labels : [type]
+        [description]
+    img_16bit : [type]
+        [description]
+    all_frames : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
     """
+
     # loop over the unique labels returned by the Watershed
 
     # labels: It is the original image where individual objects detected through watershed segmentation are assigned unique ID.
     # For example, all x,y indices having ID = 35 belongs to one cell. Therefore having estimated the 'labels' array, now we have to
     # go through all of those unique IDs and extract x,y indices associated to those IDs and then create small contour images in order
     # to pass it into cv2.findContour and then extract other information for each objects such as centroid, area, ellipticity etc.
-    """
 
     minCntLength = 5
     imgH, imgW = img_16bit.shape
@@ -542,17 +622,26 @@ def create_t_final(labels, img_16bit, all_frames):
             img_16bit, cnt, t_final, n_cell, minCntLength, imgW, imgH, all_frames
         )
 
-        # Progress bar
-        # ------------
-        # count += 1
-        progress = 100.0 * (float(n_cell) / len(cluster_index_list))
-        sys.stdout.write('\tProgress (w-shed): %d%%  \r' % (progress))
-        sys.stdout.flush()
+        # progress = 100.0 * (float(n_cell) / len(cluster_index_list))
+        # sys.stdout.write('\tProgress (w-shed): %d%%  \r' % (progress))
+        # sys.stdout.flush()
 
     return t_final
 
 
 def create_16bit_mask_image(labels):
+    """[summary]
+
+    Parameters
+    ----------
+    labels : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
 
     # convert from int32 to uint16
     mask = labels.astype(np.uint16)
@@ -565,12 +654,38 @@ def create_16bit_mask_image(labels):
 
 # convert PIL frame to opencv (16-bit)
 def convert_PIL_16bit_to_opencv_16bit(frame):
+    """[summary]
+
+    Parameters
+    ----------
+    frame : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+
     return np.array(frame)
 
 
 # convert opencv_16bit to normalized opencv 8bit
 def convert_opencv_16bit_to_normalizedOpencv_8bit(imgOpencv_16bit, normalized_factor):
+    """[summary]
 
+    Parameters
+    ----------
+    imgOpencv_16bit : [type]
+        [description]
+    normalized_factor : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     imgOpencv_16bitNormal = cv2.normalize(
         imgOpencv_16bit, dst=None, alpha=0, beta=2 ** 16, norm_type=cv2.NORM_MINMAX
     )
@@ -581,7 +696,18 @@ def convert_opencv_16bit_to_normalizedOpencv_8bit(imgOpencv_16bit, normalized_fa
 
 # create a draft image for visualisation only
 def create_draft_RGB_image_for_visualization(imgOpencv_8bit):
+    """[summary]
 
+    Parameters
+    ----------
+    imgOpencv_8bit : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     imgOpencv_8bit_copy = imgOpencv_8bit.copy()
     imgOpencv_8bit_copy = cv2.cvtColor(imgOpencv_8bit_copy, cv2.COLOR_GRAY2BGR)
     imgOpencv_8bit_copy = cv2.applyColorMap(imgOpencv_8bit_copy, cv2.COLORMAP_PINK)
@@ -594,9 +720,22 @@ def create_draft_RGB_image_for_visualization(imgOpencv_8bit):
 
 
 class ImageSequence:
-    """
+    """[summary]
+
     Going through individual image (each time it is called) in an image sequence.
-        
+
+    Raises
+    ------
+    IndexError
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+
+    Notes
+    -----
     Further reading:
     http://pillow.readthedocs.org/en/3.1.x/handbook/tutorial.html#reading-sequences
     """
@@ -614,6 +753,20 @@ class ImageSequence:
 
 
 def get_ref_channel_opencv_8bit_normalized(ref_frame, normalized_factor):
+    """[summary]
+
+    Parameters
+    ----------
+    ref_frame : [type]
+        [description]
+    normalized_factor : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
 
     # img_channel, ref_frame = get_tot_channel_number_and_specific_slice(imgPIL_cube, ref_channel)
 
@@ -629,6 +782,20 @@ def get_ref_channel_opencv_8bit_normalized(ref_frame, normalized_factor):
 
 # find number of channels
 def get_tot_channel_number_and_specific_slice(imgPIL_cube, ref_channel):
+    """[summary]
+
+    Parameters
+    ----------
+    imgPIL_cube : [type]
+        [description]
+    ref_channel : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
 
     # list containing all slices
     all_frames = list()
@@ -648,13 +815,39 @@ def get_tot_channel_number_and_specific_slice(imgPIL_cube, ref_channel):
 
 
 def get_fName(str):
-    """Return the name of a file."""
+    """Return the name of a file
+
+    Parameters
+    ----------
+    str : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+
     fileName, fileExtension = os.path.splitext(str)
     fileName = ntpath.basename(fileName)
     return fileName
 
 
 def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
+    """[summary]
+
+    Parameters
+    ----------
+    imgOpencv_16bit : [type]
+        [description]
+    normalized_factor : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
 
     # float means the array only e.g. float16 - So it is not an image (which is uint8, uint16, or uint32)
     imgOpencv_16bit_float = imgOpencv_16bit.astype(np.float16)
@@ -664,9 +857,9 @@ def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
     imgOpencv_16bit_filtered_float_normalized = (
         imgOpencv_16bit_filtered_float / np.mean(imgOpencv_16bit_filtered)
     )
-    imgOpencv_16bit_normalized = imgOpencv_16bit_filtered_float_normalized.astype(
-        np.uint16
-    )
+    # imgOpencv_16bit_normalized = imgOpencv_16bit_filtered_float_normalized.astype(
+    #     np.uint16
+    # )
 
     eps_factor = 1000.0  # get rid of zeros in array
     imgOpencv_16bit_float[np.where(imgOpencv_16bit_float == 0.0)] = 1.0 / eps_factor
@@ -696,8 +889,34 @@ def process_image(
     imgFormatOut,
     catFormat,
 ):
-    # time.sleep(1)
+    """[summary]
 
+    Parameters
+    ----------
+    img_file : [type]
+        [description]
+    ref_channel : [type]
+        [description]
+    normalized_factor : [type]
+        [description]
+    outputPath_ref : [type]
+        [description]
+    outputPath_mask : [type]
+        [description]
+    outputPath_cat : [type]
+        [description]
+    imgFormat : [type]
+        [description]
+    imgFormatOut : [type]
+        [description]
+    catFormat : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     # read 16-bit data cube
     imgPIL_cube = Image.open(img_file)
     img_name = get_fName(img_file)
@@ -709,7 +928,7 @@ def process_image(
     n_channel_tot, ref_frame, all_frames = get_tot_channel_number_and_specific_slice(
         imgPIL_cube, ref_channel
     )
-    print('\n', img_file, '\tn_tot_channel: ', n_channel_tot, '\n')
+    log.info('Processing %s, n_tot_channel: %s', img_file, n_channel_tot)
 
     # imgOpencv_16bit & imgOpencv_8bit are 16-bit and 8-bit opencv versions of the ref_frame
     imgOpencv_16bit, imgOpencv_8bit = get_ref_channel_opencv_8bit_normalized(
@@ -723,12 +942,12 @@ def process_image(
     imgOpencv_8bit_flat_normalized = get_pseudo_opecv_8bit_flat_image(
         imgOpencv_16bit, normalized_factor
     )
-    cv2.imwrite(
-        outputPath_ref + 'flat_' + img_name + imgFormat, imgOpencv_8bit_flat_normalized
-    )
+    out = outputPath_ref / f'flat_{img_name}.{imgFormat}'
+    cv2.imwrite(f'{out}', imgOpencv_8bit_flat_normalized)
 
     # visualization purpose
-    cv2.imwrite(outputPath_ref + img_name + imgFormatOut, imgOpencv_8bit)
+    out = outputPath_ref / f'{img_name}.{imgFormatOut}'
+    cv2.imwrite(f'{out}', imgOpencv_8bit)
 
     # cv2.imwrite('./test_ocv_draft.jpg',imgOpencv_8bit_copy)
     # img_16bit = cv2.imread(img_file, -1)
@@ -747,42 +966,41 @@ def process_image(
     )  # <-------------------- change here
 
     mask_img = create_16bit_mask_image(labels)
-    mask_img.save(outputPath_mask + img_name + '_mask.' + imgFormat)
+    out = outputPath_mask / f'{img_name}_mask.{imgFormat}'
+    mask_img.save(f'{out}')
 
     t_final = create_t_final(labels, imgOpencv_16bit, all_frames)
 
-    print('\tWriting output table and masked image...\n\n')
+    log.info('Writing output table and masked image')
 
     # Refining the output table catalog: removing unused rows
     t_final.remove_rows(np.where(t_final['X'] == 0)[0])
-    t_final.write(outputPath_cat + img_name + catFormat, overwrite=True)
+    out = outputPath_cat / f'{img_name}.{catFormat}'
+    t_final.write(f'{out}', overwrite=True)
     # cv2.imwrite('./test_mask.jpg', masked_image)
-    return outputPath_cat + img_name + catFormat
-
-
-"""
-########################################### I M C   F U N C T I O N S    E N D  ##############################################
-"""
-
-
-"""
------------------
-F U N C T I O N S
------------------
-"""
+    return out
 
 
 def map_uint16_to_uint8_skimage(img_16bit):
+    """[summary]
 
-    """
-    Converting the input 16-bit image to uint8 dtype (using Scikit-Image)
-    
-    reference:
-    http://scikit-image.org/docs/dev/user_guide/data_types.html
-     
+    Parameters
+    ----------
+    img_16bit : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
     """
 
-    # library
+    # Converting the input 16-bit image to uint8 dtype (using Scikit-Image)
+
+    # reference:
+    # http://scikit-image.org/docs/dev/user_guide/data_types.html
+
+    # # library
     from skimage import img_as_ubyte
     import warnings
 
@@ -795,382 +1013,27 @@ def map_uint16_to_uint8_skimage(img_16bit):
 
 
 def map_uint16_to_uint8_scipy(img_16bit):
+    """[summary]
 
-    """
-    Converting the input 16-bit image to uint8 dtype (using Scipy)
-    
-    reference:
-    https://docs.scipy.org/doc/scipy/reference/generated/scipy.misc.bytescale.html#scipy.misc.bytescale
-    
-    see also the source code:
-    https://github.com/scipy/scipy/blob/master/scipy/misc/pilutil.py
+    Parameters
+    ----------
+    img_16bit : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
     """
 
-    # library
-    from scipy.misc import bytescale
+    # Converting the input 16-bit image to uint8 dtype (using Scipy)
+
+    # reference:
+    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.misc.bytescale.html#scipy.misc.bytescale
+
+    # see also the source code:
+    # https://github.com/scipy/scipy/blob/master/scipy/misc/pilutil.py
 
     # conversion
     img_8bit = bytescale(img_16bit)
-
     return img_8bit
-
-
-"""
--------------
-C L A S S E S
--------------
-"""
-
-
-class Grid:
-    """
-    By Ali:
-    
-    A class to generate positional information in order 
-    to split a large image into smaller tiles/chunks.
-    
-
-    Desing
-
-    (A) = chunksOverlap_pt1 :(x_overlapTopLeft                  , y_overlapTopLeft                   )
-    (B) = chunks_pt1        :(x_topLeft                         , y_topLeft                          )
-    (C) = chunks_pt2        :(x_topLeft        + ch_width       , y_topLeft        + ch_height       )
-    (D) = chunksOverlap_pt2 :(x_overlapTopLeft + ch_overlapWidth, y_overlapTopLeft + ch_overlapHeight)
-
-
-                  <================= ch_overlapWidth =================>
-
-             d_overlapLeft_w            ch_width             d_overlapRight_w
-                  <====> <=====================================> <====>                   
-                      
-                 (A)
-                  .....................................................
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .......---------------------------------------.......
-                  .     |(B)                                    |     .
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .     |                                   (C) |     .
-                  ......---------------------------------------........
-                  .     |                                       |     .
-                  .     |                                       |     .
-                  .....................................................
-                                                                      (D)  
-
-    
-    """
-
-    def __init__(
-        self, img, tile_h=1000, tile_w=1000, tileOverlap_h=25, tileOverlap_w=25
-    ):
-
-        """ Default tile dimension is 1000 x 1000, i.e. 1.0 Megapixel 
-        with 25 pixels overlap along each side"""
-
-        # input matter
-        self.img = img
-        self.chunk_w = tile_w
-        self.chunk_h = tile_h
-        self.chunkOverlap_w = tileOverlap_w
-        self.chunkOverlap_h = tileOverlap_h
-        self.img_h = img.shape[0]
-        self.img_w = img.shape[1]
-        self.n_chunk_h = int(self.img_h / self.chunk_h) + 1
-        self.n_chunk_w = int(self.img_w / self.chunk_w) + 1
-        self.n_chunk_total_complete = (self.n_chunk_h - 1) * (self.n_chunk_w - 1)
-        self.n_chunk_total = self.n_chunk_h * self.n_chunk_w
-
-    def _grid_parameters(self):
-
-        chunks_id = []
-        chunks_topLeft_x = []
-        chunks_topLeft_y = []
-        chunks_height = []
-        chunks_width = []
-        chunks_pt1 = []
-        chunks_pt2 = []
-
-        chunksOverlap_topLeft_x = []
-        chunksOverlap_topLeft_y = []
-        chunksOverlap_height = []
-        chunksOverlap_width = []
-        chunksOverlap_pt1 = []
-        chunksOverlap_pt2 = []
-
-        n_chunk = 0  # initialise a chunk ID
-
-        # iterate (up -> down)
-        for j in range(self.n_chunk_h):
-
-            # iterate (left -> right)
-            for i in range(self.n_chunk_w):
-
-                n_chunk += 1
-
-                #  --------------
-                # | Chunk itself |
-                #  --------------
-                # ===================================================================
-
-                # adjust for the last chunk width along 'w' direction (left -> right)
-                # -------------------------------------------------------------------
-
-                # check if we reach to the last chunk on the right side of the image
-                if (i * self.chunk_w + self.chunk_w) > self.img_w:
-                    final_chunk_w = self.img_w - ((i + 1) * self.chunk_w) - 1
-                else:
-                    final_chunk_w = 0
-
-                # adjust for the last chunk height along 'h' direction (up -> down)
-                # -----------------------------------------------------------------
-
-                # check if we reach to the last chunk on the bottom of the image
-                if (j * self.chunk_h + self.chunk_h) > self.img_h:
-                    final_chunk_h = self.img_h - ((j + 1) * self.chunk_h) - 1
-                else:
-                    final_chunk_h = 0
-
-                # output info
-                chunks_id.append(n_chunk)
-
-                x_topLeft, y_topLeft = i * self.chunk_w, j * self.chunk_h
-                ch_width, ch_height = (
-                    (self.chunk_w + final_chunk_w),
-                    (self.chunk_h + final_chunk_h),
-                )
-
-                chunks_topLeft_x.append(x_topLeft)
-                chunks_topLeft_y.append(y_topLeft)
-
-                chunks_width.append(ch_width)
-                chunks_height.append(ch_height)
-
-                chunks_pt1.append((x_topLeft, y_topLeft))
-                chunks_pt2.append((x_topLeft + ch_width, y_topLeft + ch_height))
-
-                #  ---------------
-                # | Chunk overlap |
-                #  ---------------
-                # ===================================================================
-
-                # stage.1: Determining d_overlap Left, Right, Top, and Bottom
-
-                # extereme left overlap
-                if (x_topLeft - self.chunkOverlap_w) <= 0:
-                    d_overlapLeft_w = 0
-                else:
-                    d_overlapLeft_w = self.chunkOverlap_w
-
-                # extereme right overlap
-                if (x_topLeft + ch_width + self.chunkOverlap_w) >= self.img_w:
-                    d_overlapRight_w = 0
-                else:
-                    d_overlapRight_w = self.chunkOverlap_w
-
-                # extereme top
-                if (y_topLeft - self.chunkOverlap_h) <= 0:
-                    d_overlapTop_h = 0
-                else:
-                    d_overlapTop_h = self.chunkOverlap_h
-
-                # extereme bottom
-                if (y_topLeft + ch_height + self.chunkOverlap_h) >= self.img_h:
-                    d_overlapBottom_h = 0
-                else:
-                    d_overlapBottom_h = self.chunkOverlap_h
-
-                # stage.2: chunksOverlap information
-
-                x_overlapTopLeft = x_topLeft - d_overlapLeft_w
-                y_overlapTopLeft = y_topLeft - d_overlapTop_h
-                ch_overlapWidth = d_overlapLeft_w + ch_width + d_overlapRight_w
-                ch_overlapHeight = d_overlapTop_h + ch_height + d_overlapBottom_h
-
-                chunksOverlap_topLeft_x.append(x_overlapTopLeft)
-                chunksOverlap_topLeft_y.append(y_overlapTopLeft)
-                chunksOverlap_height.append(ch_overlapWidth)
-                chunksOverlap_width.append(ch_overlapHeight)
-                chunksOverlap_pt1.append((x_overlapTopLeft, y_overlapTopLeft))
-                chunksOverlap_pt2.append(
-                    (
-                        x_overlapTopLeft + ch_overlapWidth,
-                        y_overlapTopLeft + ch_overlapHeight,
-                    )
-                )
-
-        return (
-            chunks_id,
-            chunks_topLeft_x,
-            chunks_topLeft_y,
-            chunks_height,
-            chunks_width,
-            chunks_pt1,
-            chunks_pt2,
-            chunksOverlap_topLeft_x,
-            chunksOverlap_topLeft_y,
-            chunksOverlap_height,
-            chunksOverlap_width,
-            chunksOverlap_pt1,
-            chunksOverlap_pt2,
-        )
-
-    def get_chunks_id(self):
-        return self._grid_parameters()[0]
-
-    def get_chunks_topLeft_x(self):
-        return self._grid_parameters()[1]
-
-    def get_chunks_topLeft_y(self):
-        return self._grid_parameters()[2]
-
-    def get_chunks_height(self):
-        return self._grid_parameters()[3]
-
-    def get_chunks_width(self):
-        return self._grid_parameters()[4]
-
-    def get_chunks_pt1(self):
-        return self._grid_parameters()[5]
-
-    def get_chunks_pt2(self):
-        return self._grid_parameters()[6]
-
-    def get_chunksOverlap_topLeft_x(self):
-        return self._grid_parameters()[7]
-
-    def get_chunksOverlap_topLeft_y(self):
-        return self._grid_parameters()[8]
-
-    def get_chunksOverlap_height(self):
-        return self._grid_parameters()[9]
-
-    def get_chunksOverlap_width(self):
-        return self._grid_parameters()[10]
-
-    def get_chunksOverlap_pt1(self):
-        return self._grid_parameters()[11]
-
-    def get_chunksOverlap_pt2(self):
-        return self._grid_parameters()[12]
-
-
-class Contour:
-    """ Provides detailed parameter informations about a contour
-
-        Create a Contour instant as follows: c = Contour(contour)
-                where src_img should be grayscale image.
-
-        Attributes:
-
-        c.area -- gives the area of the region
-        c.parameter -- gives the perimeter of the region
-        c.moments -- gives all values of moments as a dict
-        c.centroid -- gives the centroid of the region as a tuple (x,y)
-        c.bounding_box -- gives the bounding box parameters as a tuple => (x,y,width,height)
-        c.bx,c.by,c.bw,c.bh -- corresponds to (x,y,width,height) of the bounding box
-        c.aspect_ratio -- aspect ratio is the ratio of width to height
-        c.equi_diameter -- equivalent diameter of the circle with same as area as that of region
-        c.extent -- extent = contour area/bounding box area
-        c.convex_hull -- gives the convex hull of the region
-        c.convex_area -- gives the area of the convex hull
-        c.solidity -- solidity = contour area / convex hull area
-        c.center -- gives the center of the ellipse
-        c.majoraxis_length -- gives the length of major axis
-        c.minoraxis_length -- gives the length of minor axis
-        c.orientation -- gives the orientation of ellipse
-        c.eccentricity -- gives the eccentricity of ellipse
-        """
-
-    def __init__(self, cnt):
-        self.cnt = cnt
-        self.size = len(cnt)
-
-        # MAIN PARAMETERS
-
-        # Contour.area - Area bounded by the contour region'''
-        self.area = cv2.contourArea(self.cnt)
-
-        # contour perimeter
-        self.perimeter = cv2.arcLength(cnt, True)
-
-        # centroid
-        self.moments = cv2.moments(cnt)
-        if self.moments['m00'] != 0.0:
-            self.cx = self.moments['m10'] / self.moments['m00']
-            self.cy = self.moments['m01'] / self.moments['m00']
-            self.centroid = (self.cx, self.cy)
-        else:
-            self.centroid = 'Region has zero area'
-
-        # bounding box
-        self.bounding_box = cv2.boundingRect(cnt)
-        (self.bx, self.by, self.bw, self.bh) = self.bounding_box
-
-        # aspect ratio
-        self.aspect_ratio = self.bw / float(self.bh)
-
-        # equivalent diameter
-        self.equi_diameter = np.sqrt(4 * self.area / np.pi)
-
-        # extent = contour area/boundingrect area
-        self.extent = self.area / (self.bw * self.bh)
-
-        # Minimum Enclosing Circle
-        (
-            self.x_mincircle,
-            self.y_mincircle,
-        ), self.radius_mincircle = cv2.minEnclosingCircle(cnt)
-        self.center_mincircle = (int(self.x_mincircle), int(self.y_mincircle))
-        self.mincircle_area = np.pi * self.radius_mincircle * self.radius_mincircle
-
-        # Checking Convexity
-        self.convexity = cv2.isContourConvex(cnt)
-
-        ### CONVEX HULL ###
-
-        # convex hull
-        self.convex_hull = cv2.convexHull(cnt)
-
-        # convex hull area
-        self.convex_area = cv2.contourArea(self.convex_hull)
-
-        # solidity = contour area / convex hull area
-        if self.convex_area != 0:
-            self.solidity = self.area / float(self.convex_area)
-        else:
-            self.solidity = 0
-
-        ### ELLIPSE  ###
-
-        self.ellipse = cv2.fitEllipse(cnt)
-
-        # center, axis_length and orientation of ellipse
-        (self.center, self.axes, self.orientation) = self.ellipse
-
-        # length of MAJOR and minor axis
-        self.majoraxis_length = max(self.axes)
-        self.minoraxis_length = min(self.axes)
-        self.area_ellipse = (
-            np.pi * (self.majoraxis_length / 2.0) * (self.minoraxis_length / 2.0)
-        )
-
-        # rotation angle
-        self.rotation_angle = self.orientation
-
-        # eccentricity = sqrt( 1 - (ma/MA)^2) --- ma= minor axis --- MA= major axis
-        self.eccentricity = np.sqrt(
-            1 - (self.minoraxis_length / self.majoraxis_length) ** 2
-        )

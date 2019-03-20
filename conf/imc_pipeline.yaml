@@ -1,19 +1,24 @@
+version: 1
+
+name: imc
+
 # i/o-related: image/catalog file types
-imgFormat : '.tiff'
-imgFormatOut : '.jpg'
-catFormat : '.fits'
-imgPath : 'DATA03__Dimitra_IMC_data' # 'test_image_IMC' 'DATA02__3D_stpt_IMC' #'DATA01__bodenmiller_data'
+img_format: tiff
+img_format_out: jpg
+cat_format: fits
+img_path: /Users/eglez/test # 'test_image_IMC' 'DATA02__3D_stpt_IMC' #'DATA01__bodenmiller_data'
 
 # i/o-related: output folder/sub-folders
-output_key: "/output/" 
-output_key_ref: "/reference/"
-output_key_mask: "/mask/"
-output_key_cat: "/catalog/"
-
-# processing-related
-n_workers_param: 20
-memory_limit_param: '10GB'
+output_key: output
+output_key_ref: reference
+output_key_mask: mask
+output_key_cat: catalog
 
 # segmentation-related parameters (IMC 25 and 10)
-ref_channel: 37         
-normalized_factor: 10 
+ref_channel: 25
+normalized_factor: 30
+
+resources:
+  threads: 1
+  workers: 6
+  memory: 6GB
