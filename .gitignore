@@ -104,3 +104,5 @@ ENV/
 .vscode
 
 docs/source
+
+.DS_Store
