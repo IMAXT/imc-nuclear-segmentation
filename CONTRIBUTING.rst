@@ -15,7 +15,7 @@ Types of Contributions
 Report Bugs
 ~~~~~~~~~~~
 
-Report bugs at https://gitlab.ast.cam.ac.uk/imaxt/{ cookiecutter.project_slug }}/issues.
+Report bugs at https://gitlab.ast.cam.ac.uk/imaxt/imc-pipeline/issues.
 
 If you are reporting a bug, please include:
 
@@ -45,7 +45,7 @@ articles, and such.
 Submit Feedback
 ~~~~~~~~~~~~~~~
 
-The best way to send feedback is to file an issue at https://gitlab.ast.cam.ac.uk/imaxt/imc_pipeline/issues.
+The best way to send feedback is to file an issue at https://gitlab.ast.cam.ac.uk/imaxt/imc-pipeline/issues.
 
 If you are proposing a feature:
 
@@ -57,12 +57,11 @@ If you are proposing a feature:
 Get Started!
 ------------
 
-Ready to contribute? Here's how to set up `imc_pipeline` for local development.
+Ready to contribute? Here's how to set up `imc-pipeline` for local development.
 
-1. Fork the `imc_pipeline` repo on GitHub.
-2. Clone your fork locally::
+1. Clone the repository  locally::
 
-    $ git clone git@github.com:your_name_here/imc_pipeline.git
+    $ git clone git@gitlab.ast.cam.ac.uk:imaxt/imc-pipeline
 
 3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
 
@@ -80,8 +79,8 @@ Ready to contribute? Here's how to set up `imc_pipeline` for local development.
 5. When you're done making changes, check that your changes pass flake8 and the
    tests, including testing other Python versions with tox::
 
-    $ flake8 imc_pipeline tests
-    $ python setup.py test or py.test
+    $ python setup.py flake8
+    $ python setup.py test
 
 6. Commit your changes and push your branch to GitHub::
 
@@ -89,7 +88,7 @@ Ready to contribute? Here's how to set up `imc_pipeline` for local development.
     $ git commit -m "Your detailed description of your changes."
     $ git push origin name-of-your-bugfix-or-feature
 
-7. Submit a pull request through the GitHub website.
+7. Submit a merge request through the GitLab website.
 
 Pull Request Guidelines
 -----------------------

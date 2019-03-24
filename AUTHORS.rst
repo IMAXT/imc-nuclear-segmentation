@@ -2,12 +2,12 @@
 Credits
 =======
 
-Development Lead
+Development Team
 ----------------
 
 * Ali Dariush <adariush@ast.cam.ac.uk>
+* Eduardo Gonzalez Solares <eglez@ast.cam.ac.uk>
 
 Contributors
 ------------
 
-None yet. Why not be the first?
