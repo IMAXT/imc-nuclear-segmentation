@@ -934,7 +934,7 @@ def process_image(
         ref_frame, normalized_factor
     )
 
-    # # for visualization in topcat:
+    # for visualization in topcat:
     # imgOpencv_8bit_copy = create_draft_RGB_image_for_visualization(imgOpencv_8bit)
 
     # create pseudo_flat_field_corrected ocv_8-bit image from ocv_16-bit image

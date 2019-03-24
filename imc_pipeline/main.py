@@ -56,7 +56,7 @@ def main(
     if not img_path.exists():
         raise FileNotFoundError(img_path)
 
-    img_list = img_path.glob(f'*{img_format}')
+    img_list = img_path.glob(f'*.{img_format}')
 
     # location of output products
     output_path = img_path / output_key
