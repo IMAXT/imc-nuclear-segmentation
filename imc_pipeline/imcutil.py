@@ -1,5 +1,4 @@
 import logging
-import ntpath
 import os
 import random
 
@@ -829,7 +828,7 @@ def get_fName(str):
     """
 
     fileName, fileExtension = os.path.splitext(str)
-    fileName = ntpath.basename(fileName)
+    fileName = os.path.basename(fileName)
     return fileName
 
 
