@@ -1,5 +1,4 @@
 import logging
-import time
 from pathlib import Path
 
 from dask import delayed
@@ -48,7 +47,6 @@ def main(
         [description] (the default is None, which [default_description])
     """
     # TODO: Complete the docstring
-    start_total = time.monotonic()
 
     client = Client.current()
 
@@ -89,8 +87,5 @@ def main(
 
     for fut in as_completed(futures):
         print(fut.result())
-
-    end = time.monotonic()
-    log.info('Total processing time %.3f s', end - start_total)
 
     log.info('IMC pipeline finished.')
