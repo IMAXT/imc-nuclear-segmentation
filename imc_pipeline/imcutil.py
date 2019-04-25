@@ -1,18 +1,17 @@
 import logging
 import os
 import random
+from typing import List
 
+import cv2
 import numpy as np
 from astropy.table import Table
-from PIL import Image
+from PIL import Image, ImageSequence
 from scipy import ndimage
-from scipy.misc import bytescale
 from scipy.ndimage.filters import gaussian_filter
 from scipy.sparse import csr_matrix
 from skimage.feature import peak_local_max
 from skimage.morphology import watershed
-
-import cv2
 
 from .contour import Contour
 
@@ -651,26 +650,18 @@ def create_16bit_mask_image(labels):
     return im
 
 
-# convert PIL frame to opencv (16-bit)
-def convert_PIL_16bit_to_opencv_16bit(frame):
-    """[summary]
-
-    Parameters
-    ----------
-    frame : [type]
-        [description]
-
-    Returns
-    -------
-    [type]
-        [description]
-    """
-
-    return np.array(frame)
+def _normalize_minmax(
+    img: np.ndarry, low: int, high: int, dtype=np.uint16
+) -> np.ndarray:
+    assert low < high
+    im_min, im_max = img.min(), img.max()
+    scl = (high - low) / (im_max - im_min)
+    im_norm = (img - im_min) * scl + low
+    return (im_norm.clip(low, high) + 0.5).astype(dtype)
 
 
 # convert opencv_16bit to normalized opencv 8bit
-def convert_opencv_16bit_to_normalizedOpencv_8bit(imgOpencv_16bit, normalized_factor):
+def normalize_channel(img, norm_factor):
     """[summary]
 
     Parameters
@@ -685,12 +676,9 @@ def convert_opencv_16bit_to_normalizedOpencv_8bit(imgOpencv_16bit, normalized_fa
     [type]
         [description]
     """
-    imgOpencv_16bitNormal = cv2.normalize(
-        imgOpencv_16bit, dst=None, alpha=0, beta=2 ** 16, norm_type=cv2.NORM_MINMAX
-    )
-    imgOpencv_8bit = bytescale(imgOpencv_16bitNormal * normalized_factor)
-
-    return imgOpencv_8bit
+    img_norm = _normalize_minmax(img, 0, 2 ** 16)
+    img_8bit = _normalize_minmax(img_norm * norm_factor, 0, 255, dtype=np.uint8)
+    return img_8bit
 
 
 # create a draft image for visualisation only
@@ -718,39 +706,6 @@ def create_draft_RGB_image_for_visualization(imgOpencv_8bit):
     return imgOpencv_8bit_copy
 
 
-class ImageSequence:
-    """[summary]
-
-    Going through individual image (each time it is called) in an image sequence.
-
-    Raises
-    ------
-    IndexError
-        [description]
-
-    Returns
-    -------
-    [type]
-        [description]
-
-    Notes
-    -----
-    Further reading:
-    http://pillow.readthedocs.org/en/3.1.x/handbook/tutorial.html#reading-sequences
-    """
-
-    def __init__(self, im):
-        self.im = im
-
-    def __getitem__(self, ix):
-        try:
-            if ix:
-                self.im.seek(ix)
-            return self.im
-        except EOFError:
-            raise IndexError  # end of sequence
-
-
 def get_ref_channel_opencv_8bit_normalized(ref_frame, normalized_factor):
     """[summary]
 
@@ -766,70 +721,25 @@ def get_ref_channel_opencv_8bit_normalized(ref_frame, normalized_factor):
     [type]
         [description]
     """
-
-    # img_channel, ref_frame = get_tot_channel_number_and_specific_slice(imgPIL_cube, ref_channel)
-
-    imgOpencv_16bit = convert_PIL_16bit_to_opencv_16bit(ref_frame)
-
-    imgOpencv_8bit = convert_opencv_16bit_to_normalizedOpencv_8bit(
-        imgOpencv_16bit, normalized_factor
-    )
-    # imgOpencv_8bit_copy  = create_draft_RGB_image_for_visualization(imgOpencv_8bit)
-
-    return imgOpencv_16bit, imgOpencv_8bit  # , imgOpencv_8bit_copy
+    im_8bit = normalize_channel(ref_frame, normalized_factor)
+    return im_8bit
 
 
 # find number of channels
-def get_tot_channel_number_and_specific_slice(imgPIL_cube, ref_channel):
-    """[summary]
+def get_frames(cube: Image) -> List[np.ndarray]:
+    """Extract all channels in a PIL data cube
 
     Parameters
     ----------
-    imgPIL_cube : [type]
-        [description]
-    ref_channel : [type]
-        [description]
+    cube
+        PIL data cube.
 
     Returns
     -------
-    [type]
-        [description]
+    list of images
     """
-
-    # list containing all slices
-    all_frames = list()
-
-    for index, frame in enumerate(ImageSequence(imgPIL_cube)):
-
-        img_channel = index + 1
-
-        all_frames.append(np.array(frame))
-        #                  <------------>
-        #                  PIL to numpy (opencv form)
-
-        if img_channel == ref_channel:
-            ref_frame = frame
-
-    return img_channel, ref_frame, all_frames
-
-
-def get_fName(str):
-    """Return the name of a file
-
-    Parameters
-    ----------
-    str : [type]
-        [description]
-
-    Returns
-    -------
-    [type]
-        [description]
-    """
-
-    fileName, fileExtension = os.path.splitext(str)
-    fileName = os.path.basename(fileName)
-    return fileName
+    all_frames = [*map(np.array, ImageSequence.Iterator(cube))]
+    return all_frames
 
 
 def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
@@ -847,10 +757,10 @@ def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
     [type]
         [description]
     """
-
     # float means the array only e.g. float16 - So it is not an image (which is uint8, uint16, or uint32)
-    imgOpencv_16bit_float = imgOpencv_16bit.astype(np.float16)
+    imgOpencv_16bit_float = imgOpencv_16bit.astype(np.float)
 
+    # TODO: explain choice of sigma=5
     imgOpencv_16bit_filtered = gaussian_filter(imgOpencv_16bit, sigma=5)
     imgOpencv_16bit_filtered_float = imgOpencv_16bit_filtered.astype(np.float16)
     imgOpencv_16bit_filtered_float_normalized = (
@@ -918,57 +828,39 @@ def process_image(
     """
     # read 16-bit data cube
     imgPIL_cube = Image.open(img_file)
-    img_name = get_fName(img_file)
+    img_name = img_file.name
 
-    # extract:
-    # (i) total number of channels in the current PIL cube data <-- to be used in 'get_feature_table' function
-    # (ii) reference frame to be usd for nuclear segmentation (visual inspection of channels) <-- for nuclear segmentation
-    # (iii) a lis where each element is numpy array version of each slice in the image data cube <-- for for flux extraction
-    n_channel_tot, ref_frame, all_frames = get_tot_channel_number_and_specific_slice(
-        imgPIL_cube, ref_channel
-    )
-    log.info('Processing %s, n_tot_channel: %s', img_file, n_channel_tot)
+    all_frames = get_frames(imgPIL_cube)
 
-    # imgOpencv_16bit & imgOpencv_8bit are 16-bit and 8-bit opencv versions of the ref_frame
-    imgOpencv_16bit, imgOpencv_8bit = get_ref_channel_opencv_8bit_normalized(
-        ref_frame, normalized_factor
-    )
+    log.info('Processing %s, n_tot_channel: %s', img_file, len(all_frames))
 
-    # for visualization in topcat:
-    # imgOpencv_8bit_copy = create_draft_RGB_image_for_visualization(imgOpencv_8bit)
+    ref_frame = all_frames[ref_channel - 1]
+    ref_frame_8bit = normalize_channel(ref_frame, normalized_factor)
 
     # create pseudo_flat_field_corrected ocv_8-bit image from ocv_16-bit image
-    imgOpencv_8bit_flat_normalized = get_pseudo_opecv_8bit_flat_image(
-        imgOpencv_16bit, normalized_factor
+    ref_frame_8bit_flat_normalized = get_pseudo_opecv_8bit_flat_image(
+        ref_frame, normalized_factor
     )
     out = outputPath_ref / f'flat_{img_name}.{imgFormat}'
-    cv2.imwrite(f'{out}', imgOpencv_8bit_flat_normalized)
+    cv2.imwrite(f'{out}', ref_frame_8bit_flat_normalized)
 
     # visualization purpose
     out = outputPath_ref / f'{img_name}.{imgFormatOut}'
-    cv2.imwrite(f'{out}', imgOpencv_8bit)
+    cv2.imwrite(f'{out}', ref_frame_8bit)
 
-    # cv2.imwrite('./test_ocv_draft.jpg',imgOpencv_8bit_copy)
-    # img_16bit = cv2.imread(img_file, -1)
-    #
-    # # convert to 8bit
-    # # img_8bit = imutil.map_uint16_to_uint8_skimage(img_16bit)
-    # img_8bit = imutil.map_uint16_to_uint8_scipy(img_16bit)
-    #
-    #
     img_binary = get_binary_image(
-        imgOpencv_8bit_flat_normalized
+        ref_frame_8bit_flat_normalized
     )  # <---------------------------------------------- change here
 
     labels = apply_wShed_and_get_cluster_labels(
-        imgOpencv_8bit_flat_normalized, img_binary
+        ref_frame_8bit_flat_normalized, img_binary
     )  # <-------------------- change here
 
     mask_img = create_16bit_mask_image(labels)
     out = outputPath_mask / f'{img_name}_mask.{imgFormat}'
     mask_img.save(f'{out}')
 
-    t_final = create_t_final(labels, imgOpencv_16bit, all_frames)
+    t_final = create_t_final(labels, ref_frame, all_frames)
 
     log.info('Writing output table and masked image')
 
@@ -1008,31 +900,4 @@ def map_uint16_to_uint8_skimage(img_16bit):
         warnings.simplefilter('ignore')
         img_8bit = img_as_ubyte(img_16bit)
 
-    return img_8bit
-
-
-def map_uint16_to_uint8_scipy(img_16bit):
-    """[summary]
-
-    Parameters
-    ----------
-    img_16bit : [type]
-        [description]
-
-    Returns
-    -------
-    [type]
-        [description]
-    """
-
-    # Converting the input 16-bit image to uint8 dtype (using Scipy)
-
-    # reference:
-    # https://docs.scipy.org/doc/scipy/reference/generated/scipy.misc.bytescale.html#scipy.misc.bytescale
-
-    # see also the source code:
-    # https://github.com/scipy/scipy/blob/master/scipy/misc/pilutil.py
-
-    # conversion
-    img_8bit = bytescale(img_16bit)
     return img_8bit

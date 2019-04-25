@@ -15,6 +15,7 @@ class Grid:
             [description] (the default is 25, which [default_description])
     """
 
+    # TODO: put this in docstring
     # By Ali:
 
     # A class to generate positional information in order
