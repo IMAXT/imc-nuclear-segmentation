@@ -1,6 +1,5 @@
-import numpy as np
-
 import cv2
+import numpy as np
 
 
 class Contour:
@@ -11,6 +10,8 @@ class Contour:
     cnt : [type]
         [description]
     """
+
+    # TODO: This needs to go in the docstring above
 
     # Provides detailed parameter informations about a contour
 
@@ -38,13 +39,6 @@ class Contour:
     # c.eccentricity -- gives the eccentricity of ellipse
 
     def __init__(self, cnt):
-        """[summary]
-
-        Parameters
-        ----------
-        cnt : [type]
-            [description]
-        """
 
         self.cnt = cnt
         self.size = len(cnt)

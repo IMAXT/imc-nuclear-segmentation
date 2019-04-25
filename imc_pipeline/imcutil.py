@@ -482,7 +482,7 @@ def extract_features_and_update_catalog(
     return n_cell
 
 
-def random_color():
+def random_color() -> List[int]:
     """[summary]
 
     Returns
@@ -490,7 +490,6 @@ def random_color():
     [type]
         [description]
     """
-
     return [random.randint(0, 255) for i in range(3)]
 
 
@@ -651,7 +650,7 @@ def create_16bit_mask_image(labels):
 
 
 def _normalize_minmax(
-    img: np.ndarry, low: int, high: int, dtype=np.uint16
+    img: np.ndarray, low: int, high: int, dtype=np.uint16
 ) -> np.ndarray:
     assert low < high
     im_min, im_max = img.min(), img.max()
@@ -727,12 +726,12 @@ def get_ref_channel_opencv_8bit_normalized(ref_frame, normalized_factor):
 
 # find number of channels
 def get_frames(cube: Image) -> List[np.ndarray]:
-    """Extract all channels in a PIL data cube
+    """Extract all channels in an Image data cube
 
     Parameters
     ----------
     cube
-        PIL data cube.
+        data cube
 
     Returns
     -------
@@ -780,7 +779,7 @@ def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
         imgOpencv_16bit_float / imgOpencv_16bit_filtered_float_normalized
     )
     imgOpencv_16bit_flat = imgOpencv_16bit_float_flat.astype(np.uint16)
-    imgOpencv_8bit_flat_normalized = convert_opencv_16bit_to_normalizedOpencv_8bit(
+    imgOpencv_8bit_flat_normalized = normalize_channel(
         imgOpencv_16bit_flat, normalized_factor
     )
 
@@ -827,10 +826,10 @@ def process_image(
         [description]
     """
     # read 16-bit data cube
-    imgPIL_cube = Image.open(img_file)
+    img_cube = Image.open(img_file)
     img_name = img_file.name
 
-    all_frames = get_frames(imgPIL_cube)
+    all_frames = get_frames(img_cube)
 
     log.info('Processing %s, n_tot_channel: %s', img_file, len(all_frames))
 
