@@ -354,7 +354,7 @@ def extract_features_and_update_catalog(
     flux_feature_columns = [f for f in t_final.colnames if flux_keyword in f]
 
     n_buff = (
-        2
+        1
     )  # buffer pixel width within which the flux will be measured around the main cell. If n_buff = 0, it is as usual (no boundary around cell)
     buff_keyword = 'buffer'
     buff_feature_columns = [f for f in t_final.colnames if buff_keyword in f]
