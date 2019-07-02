@@ -11,6 +11,7 @@ log = logging.getLogger('owl.daemon.pipeline')
 
 def main(
     ref_channel=None,
+    n_buff=None,
     normalized_factor=None,
     img_format=None,
     img_format_out=None,
@@ -74,6 +75,7 @@ def main(
         res = delayed(imcutil.process_image)(
             img_file,
             ref_channel,
+            n_buff,
             normalized_factor,
             output_path_ref,
             output_path_mask,

@@ -319,7 +319,7 @@ def get_feature_table(n_valid_cnt=0):
 
 
 def extract_features_and_update_catalog(
-    img_16bit, cnt, t_final, n_cell, minCntLength, imgW, imgH, all_frames
+    img_16bit, cnt, t_final, n_cell, minCntLength, imgW, imgH, all_frames, n_buff
 ):
     """[summary]
 
@@ -341,7 +341,8 @@ def extract_features_and_update_catalog(
         [description]
     all_frames : [type]
         [description]
-
+    n_buff : int
+        buffer pixel width within which the flux will be measured around the main cell. If n_buff = 0, it is as usual (no boundary around cell)
     Returns
     -------
     [type]
@@ -353,9 +354,6 @@ def extract_features_and_update_catalog(
     flux_keyword = 'flux'
     flux_feature_columns = [f for f in t_final.colnames if flux_keyword in f]
 
-    n_buff = (
-        1
-    )  # buffer pixel width within which the flux will be measured around the main cell. If n_buff = 0, it is as usual (no boundary around cell)
     buff_keyword = 'buffer'
     buff_feature_columns = [f for f in t_final.colnames if buff_keyword in f]
 
@@ -564,7 +562,7 @@ def apply_wShed_and_get_cluster_labels(img_8bit, img_binary):
 
 
 # preparing the final output catalog
-def create_t_final(labels, img_16bit, all_frames):
+def create_t_final(labels, img_16bit, all_frames, n_buff):
     """[summary]
 
     Parameters
@@ -617,7 +615,7 @@ def create_t_final(labels, img_16bit, all_frames):
 
         # extract features from individual contours (cnt) and add into t_final - Also update n_cell counter
         n_cell = extract_features_and_update_catalog(
-            img_16bit, cnt, t_final, n_cell, minCntLength, imgW, imgH, all_frames
+            img_16bit, cnt, t_final, n_cell, minCntLength, imgW, imgH, all_frames, n_buff
         )
 
         # progress = 100.0 * (float(n_cell) / len(cluster_index_list))
@@ -747,6 +745,7 @@ def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
 def process_image(
     img_file,
     ref_channel,
+    n_buff,
     normalized_factor,
     outputPath_ref,
     outputPath_mask,
@@ -817,7 +816,7 @@ def process_image(
     out = outputPath_mask / f'{img_name}_mask.{imgFormat}'
     mask_img.save(f'{out}')
 
-    t_final = create_t_final(labels, ref_frame, all_frames)
+    t_final = create_t_final(labels, ref_frame, all_frames, n_buff)
 
     log.info('Writing output table and masked image')
 

@@ -10,6 +10,7 @@ schema = vo.Schema(
         vo.Required('output_key_ref'): str,
         vo.Required('output_key_mask'): str,
         vo.Required('output_key_cat'): str,
+        vo.Required('n_buff'): int,
         vo.Required('ref_channel'): int,
         vo.Required('normalized_factor'): int,
     }
