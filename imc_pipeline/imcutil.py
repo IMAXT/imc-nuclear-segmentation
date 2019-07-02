@@ -73,10 +73,9 @@ def get_contour_in_mask(cnt_mask, cnt_topLeft_P):
         [description]
     """
     # detect contours in the cnt_mask and grab the largest one
-    cnts = cv2.findContours(cnt_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[
-        -2
-    ]
-    c = max(cnts, key=cv2.contourArea)
+    # TODO: why do we need to use .copy() ?
+    cnts = cv2.findContours(cnt_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    c = max(cnts[-2], key=cv2.contourArea)
     c = c.reshape(c.shape[0], c.shape[2])
 
     # apply offset to account for the correct location of the cell in the image
@@ -366,6 +365,7 @@ def extract_features_and_update_catalog(
         # create a contour object
         c = Contour(cnt)
 
+        # TODO: remove code if unused
         # ellipse = cv2.fitEllipse(c)
         # (x, y), (MA, ma), angle = ellipse
         # ellipse_area = np.pi * (MA/2.0) * (ma/2.0)
@@ -453,6 +453,7 @@ def extract_features_and_update_catalog(
                 mask_buff = cv2.subtract(mask_fast_dilation, mask_fast)
 
                 # examine sample mask images
+                # TODO: These writes will not work. They need full path of output directory.
                 if n_cell == 0:
                     cv2.imwrite('./x_test_mask.tif', mask_fast)
                     cv2.imwrite('./x_test_mask_dialation.tif', mask_fast_dilation)
@@ -626,7 +627,7 @@ def create_t_final(labels, img_16bit, all_frames):
     return t_final
 
 
-def create_16bit_mask_image(labels):
+def create_mask_image(labels):
     """[summary]
 
     Parameters
@@ -679,49 +680,6 @@ def normalize_channel(img, norm_factor):
     img_8bit = _normalize_minmax(img_norm * norm_factor, 0, 255, dtype=np.uint8)
     return img_8bit
 
-
-# create a draft image for visualisation only
-def create_draft_RGB_image_for_visualization(imgOpencv_8bit):
-    """[summary]
-
-    Parameters
-    ----------
-    imgOpencv_8bit : [type]
-        [description]
-
-    Returns
-    -------
-    [type]
-        [description]
-    """
-    imgOpencv_8bit_copy = imgOpencv_8bit.copy()
-    imgOpencv_8bit_copy = cv2.cvtColor(imgOpencv_8bit_copy, cv2.COLOR_GRAY2BGR)
-    imgOpencv_8bit_copy = cv2.applyColorMap(imgOpencv_8bit_copy, cv2.COLORMAP_PINK)
-    imgOpencv_8bit_copy = cv2.GaussianBlur(imgOpencv_8bit_copy, (5, 5), 0)
-    imgOpencv_8bit_copy = cv2.GaussianBlur(
-        imgOpencv_8bit_copy, (0, 0), sigmaX=0.5, sigmaY=0.5
-    )
-
-    return imgOpencv_8bit_copy
-
-
-def get_ref_channel_opencv_8bit_normalized(ref_frame, normalized_factor):
-    """[summary]
-
-    Parameters
-    ----------
-    ref_frame : [type]
-        [description]
-    normalized_factor : [type]
-        [description]
-
-    Returns
-    -------
-    [type]
-        [description]
-    """
-    im_8bit = normalize_channel(ref_frame, normalized_factor)
-    return im_8bit
 
 
 # find number of channels
@@ -855,7 +813,7 @@ def process_image(
         ref_frame_8bit_flat_normalized, img_binary
     )  # <-------------------- change here
 
-    mask_img = create_16bit_mask_image(labels)
+    mask_img = create_mask_image(labels)
     out = outputPath_mask / f'{img_name}_mask.{imgFormat}'
     mask_img.save(f'{out}')
 
