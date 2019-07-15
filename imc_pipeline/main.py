@@ -15,10 +15,9 @@ def main(
     ref_channel=None,
     n_buff=None,
     normalized_factor=None,
-    img_format=None,
-    img_format_out=None,
     cat_format=None,
     img_path=None,
+    output_path=None,
     output_key=None,
     output_key_ref=None,
     output_key_mask=None,
@@ -59,14 +58,7 @@ def main(
     if not img_path.exists():
         raise FileNotFoundError(img_path)
 
-    img_list = img_path.glob(f'*.{img_format}')
-
-    # location of output products
-    output_path = img_path / output_key
-    output_path_ref = output_path / output_key_ref
-    output_path_mask = output_path / output_key_mask
-    output_path_cat = output_path / output_key_cat
-
+    output_path = Path(output_path)
     output_path.mkdir(exist_ok=True)
 
     img_list = preprocess(img_path, output_path / 'cubes')
@@ -74,16 +66,7 @@ def main(
     futures = []
     for img_file in img_list:
         res = delayed(imcutil.process_image)(
-            img_file,
-            ref_channel,
-            n_buff,
-            normalized_factor,
-            output_path_ref,
-            output_path_mask,
-            output_path_cat,
-            img_format,
-            img_format_out,
-            cat_format,
+            img_file, ref_channel, n_buff, normalized_factor, output_path
         )
         fut = client.compute(res)
         futures.append(fut)

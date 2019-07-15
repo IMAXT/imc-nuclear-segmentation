@@ -615,7 +615,15 @@ def create_t_final(labels, img_16bit, all_frames, n_buff):
 
         # extract features from individual contours (cnt) and add into t_final - Also update n_cell counter
         n_cell = extract_features_and_update_catalog(
-            img_16bit, cnt, t_final, n_cell, minCntLength, imgW, imgH, all_frames, n_buff
+            img_16bit,
+            cnt,
+            t_final,
+            n_cell,
+            minCntLength,
+            imgW,
+            imgH,
+            all_frames,
+            n_buff,
         )
 
         # progress = 100.0 * (float(n_cell) / len(cluster_index_list))
@@ -677,7 +685,6 @@ def normalize_channel(img, norm_factor):
     img_norm = _normalize_minmax(img, 0, 2 ** 16)
     img_8bit = _normalize_minmax(img_norm * norm_factor, 0, 255, dtype=np.uint8)
     return img_8bit
-
 
 
 # find number of channels
@@ -742,18 +749,7 @@ def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
     return imgOpencv_8bit_flat_normalized
 
 
-def process_image(
-    img_file,
-    ref_channel,
-    n_buff,
-    normalized_factor,
-    outputPath_ref,
-    outputPath_mask,
-    outputPath_cat,
-    imgFormat,
-    imgFormatOut,
-    catFormat,
-):
+def process_image(img_file, ref_channel, n_buff, normalized_factor, outputPath):
     """[summary]
 
     Parameters
@@ -764,17 +760,7 @@ def process_image(
         [description]
     normalized_factor : [type]
         [description]
-    outputPath_ref : [type]
-        [description]
-    outputPath_mask : [type]
-        [description]
-    outputPath_cat : [type]
-        [description]
-    imgFormat : [type]
-        [description]
-    imgFormatOut : [type]
-        [description]
-    catFormat : [type]
+    outputPath : [type]
         [description]
 
     Returns
@@ -797,12 +783,10 @@ def process_image(
     ref_frame_8bit_flat_normalized = get_pseudo_opecv_8bit_flat_image(
         ref_frame, normalized_factor
     )
-    out = outputPath_ref / f'flat_{img_name}.{imgFormat}'
-    cv2.imwrite(f'{out}', ref_frame_8bit_flat_normalized)
-
-    # visualization purpose
-    out = outputPath_ref / f'{img_name}.{imgFormatOut}'
-    cv2.imwrite(f'{out}', ref_frame_8bit)
+    out = outputPath / 'reference'
+    out.mkdir(exist_ok=True)
+    cv2.imwrite(f'{out}/flat_{img_name}.tif', ref_frame_8bit_flat_normalized)
+    cv2.imwrite(f'{out}/{img_name}.jpg', ref_frame_8bit)
 
     img_binary = get_binary_image(
         ref_frame_8bit_flat_normalized
@@ -813,8 +797,9 @@ def process_image(
     )  # <-------------------- change here
 
     mask_img = create_mask_image(labels)
-    out = outputPath_mask / f'{img_name}_mask.{imgFormat}'
-    mask_img.save(f'{out}')
+    out = outputPath / 'mask'
+    out.mkdir(exist_ok=True)
+    mask_img.save(f'{out}/{img_name}_mask.tif')
 
     t_final = create_t_final(labels, ref_frame, all_frames, n_buff)
 
@@ -822,8 +807,9 @@ def process_image(
 
     # Refining the output table catalog: removing unused rows
     t_final.remove_rows(np.where(t_final['X'] == 0)[0])
-    out = outputPath_cat / f'{img_name}.{catFormat}'
-    t_final.write(f'{out}', overwrite=True)
+    out = outputPath / 'catalogue'
+    out.mkdir(exist_ok=True)
+    t_final.write(f'{out}/{img_name}.fits', overwrite=True)
     # cv2.imwrite('./test_mask.jpg', masked_image)
     return out
 

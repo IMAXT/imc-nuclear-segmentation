@@ -2,17 +2,11 @@ version: 1
 
 name: imc
 
-# i/o-related: image/catalog file types
-img_format: tiff
-img_format_out: jpg
-cat_format: fits
 img_path: /Users/eglez/test # 'test_image_IMC' 'DATA02__3D_stpt_IMC' #'DATA01__bodenmiller_data'
+output_path: /Users/eglez/output
 
-# i/o-related: output folder/sub-folders
-output_key: output
-output_key_ref: reference
-output_key_mask: mask
-output_key_cat: catalog
+# flux-estimation (mean pixel intensities) related parameters
+n_buff: 1
 
 # segmentation-related parameters (IMC 25 and 10)
 ref_channel: 25
