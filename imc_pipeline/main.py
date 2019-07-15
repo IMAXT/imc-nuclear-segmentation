@@ -1,4 +1,5 @@
 import logging
+import traceback
 from pathlib import Path
 
 from dask import delayed
@@ -72,6 +73,11 @@ def main(
         futures.append(fut)
 
     for fut in as_completed(futures):
-        print(fut.result())
+        if not fut.exception():
+            log.info(fut.result())
+        else:
+            log.error(fut.exception())
+            tb = fut.traceback()
+            log.error(traceback.format_tb(tb))
 
     log.info('IMC pipeline finished.')

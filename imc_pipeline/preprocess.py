@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+from typing import List
 
 import numpy as np
 
@@ -9,7 +10,7 @@ from imaxt_image.image import TiffImage
 log = logging.getLogger('owl.daemon.pipeline')
 
 
-def preprocess(input_dir: Path, output_dir: Path):
+def preprocess(input_dir: Path, output_dir: Path) -> List[Path]:
     """Preprocess IMC input image directory.
 
     Individual images are saved as cubes.
@@ -25,13 +26,16 @@ def preprocess(input_dir: Path, output_dir: Path):
     -------
     list of filenames, each containing a cube
     """
+    if not output_dir.exists():
+        output_dir.mkdir()
+
     filelist = []
     for slide in input_dir.glob('*'):
         if not slide.is_dir():
             continue
         for cube in slide.glob('Q???'):
             output = output_dir / f'{slide.name}-{cube.name}.tif'
-            if output.exist():
+            if output.exists():
                 log.debug('%s already exists', output)
                 filelist.append(output)
                 continue
@@ -47,7 +51,7 @@ def preprocess(input_dir: Path, output_dir: Path):
                 filelist.append(output)
             except Exception:
                 log.critical('Cannot save file %s', output)
-                if output.exist():
+                if output.exists():
                     output.unlink()
 
     return filelist

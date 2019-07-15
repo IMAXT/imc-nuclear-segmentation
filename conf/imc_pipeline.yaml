@@ -2,14 +2,14 @@ version: 1
 
 name: imc
 
-img_path: /Users/eglez/test # 'test_image_IMC' 'DATA02__3D_stpt_IMC' #'DATA01__bodenmiller_data'
-output_path: /Users/eglez/output
+img_path: /data/meds1_a/imaxtapp/incoming/MA1-0002/IMC
+output_path: /data/meds1_b/imaxt/imc/MA1-0002
 
 # flux-estimation (mean pixel intensities) related parameters
 n_buff: 1
 
 # segmentation-related parameters (IMC 25 and 10)
-ref_channel: 25
+ref_channel: 10
 normalized_factor: 30
 
 resources:

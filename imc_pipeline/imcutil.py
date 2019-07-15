@@ -1,17 +1,18 @@
 import logging
-import os
 import random
 from typing import List
 
 import cv2
 import numpy as np
 from astropy.table import Table
-from PIL import Image, ImageSequence
+from PIL import Image
 from scipy import ndimage
 from scipy.ndimage.filters import gaussian_filter
 from scipy.sparse import csr_matrix
 from skimage.feature import peak_local_max
 from skimage.morphology import watershed
+
+from imaxt_image.image import TiffImage
 
 from .contour import Contour
 
@@ -58,7 +59,7 @@ def get_cnt_mask(cluster_index, sp_arr, labels_shape):
 
 
 def get_contour_in_mask(cnt_mask, cnt_topLeft_P):
-    """[summary]
+    """Detect contours in the cnt_mask and grab the largest one
 
     Parameters
     ----------
@@ -72,7 +73,6 @@ def get_contour_in_mask(cnt_mask, cnt_topLeft_P):
     [type]
         [description]
     """
-    # detect contours in the cnt_mask and grab the largest one
     # TODO: why do we need to use .copy() ?
     cnts = cv2.findContours(cnt_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     c = max(cnts[-2], key=cv2.contourArea)
@@ -122,10 +122,7 @@ def get_feature_table(n_valid_cnt=0):
     flux = np.zeros((ch, n_valid_cnt), dtype=np.float32)
     f_buffer = np.zeros((ch, n_valid_cnt), dtype=np.float32)
 
-    #  ------------------------------------------------------------
-    # |                 creating binary table                      |
-    #  ------------------------------------------------------------
-
+    # creating binary table
     t = Table(
         [
             feature_X_topcat,
@@ -363,26 +360,6 @@ def extract_features_and_update_catalog(
         # create a contour object
         c = Contour(cnt)
 
-        # TODO: remove code if unused
-        # ellipse = cv2.fitEllipse(c)
-        # (x, y), (MA, ma), angle = ellipse
-        # ellipse_area = np.pi * (MA/2.0) * (ma/2.0)
-        # area.append(ellipse_area)
-        # cv2.ellipse(imgOpencv_8bit_copy, ellipse, random_color(), 1)
-        # r = lambda: random.randint(0,255)
-
-        # if ma < 75:
-        #     # cv2.ellipse(imgOpencv_8bit_copy, ellipse, (0,255,0), 1)
-        #     cv2.ellipse(imgOpencv_8bit_copy, ellipse, random_color(), 1)
-
-        # draw a circle enclosing the object
-        # ((x, y), r) = cv2.minEnclosingCircle(c)
-        # # cv2.circle(image, (int(x), int(y)), int(r), (0, 255, 0), 1)
-        # cv2.putText(imgOpencv_8bit_copy, "#{}".format(label), (int(x) - 10, int(y)),
-        #             cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
-
-        # contour.append(cnt)
-
         # objects should have non-zero area size
         if c.area > 0:
 
@@ -399,12 +376,6 @@ def extract_features_and_update_catalog(
                 and (xc + wRect + n_buff) < imgW
                 and (yc + hRect + n_buff) < imgH
             ):
-
-                # # Draw contours on mask image
-                # # ---------------------------
-                # cv2.drawContours(masked_image, [cnt], 0, random_color(), -1)
-                # cv2.circle(imgOpencv_8bit_copy, (int(xc), int(yc)), 1, (0, 255, 255), -1)
-
                 # Positional
                 # ----------
 
@@ -449,20 +420,6 @@ def extract_features_and_update_catalog(
                 )
                 mask_fast_dilation = cv2.dilate(mask_fast, kernel, iterations=n_buff)
                 mask_buff = cv2.subtract(mask_fast_dilation, mask_fast)
-
-                # examine sample mask images
-                # TODO: These writes will not work. They need full path of output directory.
-                if n_cell == 0:
-                    cv2.imwrite('./x_test_mask.tif', mask_fast)
-                    cv2.imwrite('./x_test_mask_dialation.tif', mask_fast_dilation)
-                    cv2.imwrite('./x_test_mask_buffer.tif', mask_buff)
-
-                # crop_src = imgPIL_channels[ch_index][yRect:(yRect + hRect), xRect:(xRect + wRect)]
-                # flux[ch_index][n_cell] = cv2.mean(crop_src ,  mask = mask_fast)[0]
-
-                # crop and extract the flux from REF frame
-                # crop_src = img_16bit[yRect:(yRect + hRect), xRect:(xRect + wRect)]
-                # t_final['flux_01'][n_cell]= cv2.mean(crop_src ,  mask = mask_fast)[0]
 
                 # extract flux from all available channels
                 for ch_index in range(len(all_frames)):
@@ -626,10 +583,6 @@ def create_t_final(labels, img_16bit, all_frames, n_buff):
             n_buff,
         )
 
-        # progress = 100.0 * (float(n_cell) / len(cluster_index_list))
-        # sys.stdout.write('\tProgress (w-shed): %d%%  \r' % (progress))
-        # sys.stdout.flush()
-
     return t_final
 
 
@@ -700,7 +653,8 @@ def get_frames(cube: Image) -> List[np.ndarray]:
     -------
     list of images
     """
-    all_frames = [*map(np.array, ImageSequence.Iterator(cube))]
+    # all_frames = [*map(np.array, ImageSequence.Iterator(cube))]
+    all_frames = TiffImage(cube).asarray()
     return all_frames
 
 
@@ -769,10 +723,10 @@ def process_image(img_file, ref_channel, n_buff, normalized_factor, outputPath):
         [description]
     """
     # read 16-bit data cube
-    img_cube = Image.open(img_file)
-    img_name = img_file.name
+    # img_cube = Image.open(img_file)
+    img_name = img_file.name.replace('.tif', '')
 
-    all_frames = get_frames(img_cube)
+    all_frames = get_frames(img_file)
 
     log.info('Processing %s, n_tot_channel: %s', img_file, len(all_frames))
 
@@ -811,7 +765,7 @@ def process_image(img_file, ref_channel, n_buff, normalized_factor, outputPath):
     out.mkdir(exist_ok=True)
     t_final.write(f'{out}/{img_name}.fits', overwrite=True)
     # cv2.imwrite('./test_mask.jpg', masked_image)
-    return out
+    return f'{out}/{img_name}.fits'
 
 
 def map_uint16_to_uint8_skimage(img_16bit):
