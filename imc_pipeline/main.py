@@ -6,6 +6,8 @@ from distributed import Client, as_completed
 
 from imc_pipeline import imcutil
 
+from .preprocess import preprocess
+
 log = logging.getLogger('owl.daemon.pipeline')
 
 
@@ -66,9 +68,8 @@ def main(
     output_path_cat = output_path / output_key_cat
 
     output_path.mkdir(exist_ok=True)
-    output_path_ref.mkdir(exist_ok=True)
-    output_path_mask.mkdir(exist_ok=True)
-    output_path_cat.mkdir(exist_ok=True)
+
+    img_list = preprocess(img_path, output_path / 'cubes')
 
     futures = []
     for img_file in img_list:
