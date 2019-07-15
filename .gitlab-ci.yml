@@ -7,6 +7,8 @@ test:
   tags:
     - python
   script:
+    - pip config set global.extra-index-url $EXTRA_INDEX_URL
+    - pip config set global.trusted-host $TRUSTED_HOST
     - pip install --user -r requirements_dev.txt
     - python setup.py develop --user
     - python setup.py flake8
@@ -22,6 +24,8 @@ deploy:
   except:
     - branches
   script:
+    - pip config set global.extra-index-url $EXTRA_INDEX_URL
+    - pip config set global.trusted-host $TRUSTED_HOST
     - pip install --user -r requirements_dev.txt
     - python setup.py sdist
     - curl -X MKCOL $REPO/imc_pipeline
