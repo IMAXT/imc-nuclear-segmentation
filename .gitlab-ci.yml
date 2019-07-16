@@ -32,7 +32,7 @@ deploy:
     - pip install --user -r requirements_dev.txt
     - pip install --user imaxt-image
     - python setup.py sdist
-    - curl -X MKCOL $REPO/imc_pipeline
-    - curl -XPUT $REPO/imc_pipeline/imc_pipeline-0.1.2.tar.gz --data-binary @dist/imc_pipeline-0.1.2.tar.gz
+    - curl -X MKCOL $REPO/imc-pipeline
+    - curl -XPUT $REPO/imc-pipeline/imc-pipeline-0.1.2.tar.gz --data-binary @dist/imc-pipeline-0.1.2.tar.gz
 
 
