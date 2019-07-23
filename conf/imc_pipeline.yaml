@@ -1,6 +1,7 @@
 version: 1
 
 name: imc
+extra_pip_packages: imc-pipeline
 
 img_path: /data/meds1_a/imaxtapp/incoming/MA1-0002/IMC
 output_path: /data/meds1_b/imaxt/imc/MA1-0002

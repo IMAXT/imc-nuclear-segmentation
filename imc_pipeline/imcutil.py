@@ -482,7 +482,15 @@ def get_binary_image(
     return img_binary
 
 
-def apply_wShed_and_get_cluster_labels(img_8bit, img_binary, min_distance):
+def apply_wShed_and_get_cluster_labels(
+    img_8bit,
+    img_binary,
+    min_distance,
+    gb_ksize,
+    gb_sigma,
+    adapThresh_blockSize,
+    adapThresh_constant,
+):
     """Watershed segmentation
 
     Parameters
@@ -497,7 +505,9 @@ def apply_wShed_and_get_cluster_labels(img_8bit, img_binary, min_distance):
     [type]
         [description]
     """
-    img_binary = get_binary_image(img_8bit)
+    img_binary = get_binary_image(
+        img_8bit, gb_ksize, gb_sigma, adapThresh_blockSize, adapThresh_constant
+    )
 
     D = ndimage.distance_transform_edt(img_binary)
 
@@ -727,7 +737,7 @@ def process_image(img_file, n_buff, normalized_factor, segmentation, outputPath)
 
     log.info('Processing %s, n_tot_channel: %s', img_file, len(all_frames))
 
-    ref_channel = segmentation['ref_channel']
+    ref_channel = segmentation.pop('ref_channel')
     ref_frame = all_frames[ref_channel - 1]
     ref_frame_8bit = normalize_channel(ref_frame, normalized_factor)
 
@@ -749,7 +759,13 @@ def process_image(img_file, n_buff, normalized_factor, segmentation, outputPath)
     )  # <---------------------------------------------- change here
 
     labels = apply_wShed_and_get_cluster_labels(
-        ref_frame_8bit_flat_normalized, img_binary, segmentation['min_distance']
+        ref_frame_8bit_flat_normalized,
+        img_binary,
+        segmentation['min_distance'],
+        segmentation['gb_ksize'],
+        segmentation['gb_sigma'],
+        segmentation['adapThresh_blockSize'],
+        segmentation['adapThresh_constant'],
     )  # <-------------------- change here
 
     mask_img = create_mask_image(labels)

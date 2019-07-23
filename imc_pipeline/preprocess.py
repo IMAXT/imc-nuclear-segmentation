@@ -30,6 +30,7 @@ def preprocess(input_dir: Path, output_dir: Path) -> List[Path]:
         output_dir.mkdir()
 
     filelist = []
+    # TODO: This can be run in parallel for each slice
     for slide in input_dir.glob('*'):
         if not slide.is_dir():
             continue
