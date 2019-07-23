@@ -1,20 +1,11 @@
-Welcome to IMC Pipeline's documentation!
-========================================
+IMC Pipeline
+============
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
    readme
-   installation
    usage
-   source/modules
-   contributing
+   development
    authors
    history
-
-Indices and tables
-==================
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

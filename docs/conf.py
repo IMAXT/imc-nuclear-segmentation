@@ -20,9 +20,13 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..'))
+
+import sphinx.apidoc
 
 import imc_pipeline
+
+sys.path.insert(0, os.path.abspath('..'))
+
 
 # -- General configuration ---------------------------------------------
 
@@ -33,15 +37,15 @@ import imc_pipeline
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    "sphinx.ext.autodoc",
-    "sphinx.ext.imgmath",
-    "sphinx.ext.ifconfig",
-    "sphinx.ext.viewcode",
-    "sphinx.ext.napoleon",
-    "sphinx.ext.coverage",
-    "sphinx.ext.autosummary",
-    "sphinx.ext.intersphinx",
-    "sphinx_autodoc_typehints",
+    'sphinx.ext.autodoc',
+    'sphinx.ext.imgmath',
+    'sphinx.ext.ifconfig',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.coverage',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.intersphinx',
+    'sphinx_autodoc_typehints',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -58,8 +62,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'IMC Pipeline'
-copyright = u"2019, Ali Dariush"
-author = u"Ali Dariush"
+copyright = u'2019, Ali Dariush'
+author = u'Ali Dariush'
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -120,15 +124,12 @@ latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',
-
     # The font size ('10pt', '11pt' or '12pt').
     #
     # 'pointsize': '10pt',
-
     # Additional stuff for the LaTeX preamble.
     #
     # 'preamble': '',
-
     # Latex figure (float) alignment
     #
     # 'figure_align': 'htbp',
@@ -138,9 +139,13 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass
 # [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'imc_pipeline.tex',
-     u'IMC Pipeline Documentation',
-     u'Ali Dariush', 'manual'),
+    (
+        master_doc,
+        'imc_pipeline.tex',
+        u'IMC Pipeline Documentation',
+        u'Ali Dariush',
+        'manual',
+    )
 ]
 
 
@@ -148,11 +153,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, 'imc_pipeline',
-     u'IMC Pipeline Documentation',
-     [author], 1)
-]
+man_pages = [(master_doc, 'imc_pipeline', u'IMC Pipeline Documentation', [author], 1)]
 
 
 # -- Options for Texinfo output ----------------------------------------
@@ -161,16 +162,17 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'imc_pipeline',
-     u'IMC Pipeline Documentation',
-     author,
-     'imc_pipeline',
-     'One line description of project.',
-     'Miscellaneous'),
+    (
+        master_doc,
+        'imc_pipeline',
+        u'IMC Pipeline Documentation',
+        author,
+        'imc_pipeline',
+        'One line description of project.',
+        'Miscellaneous',
+    )
 ]
 
-
-import sphinx.apidoc
 
 def setup(app):
     sphinx.apidoc.main(['-f', '-o', 'docs/source', 'imc_pipeline'])
