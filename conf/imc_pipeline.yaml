@@ -1,6 +1,7 @@
 version: 1
 
 name: imc
+extra_pip_packages: imc-pipeline
 
 img_path: /data/meds1_a/imaxtapp/incoming/MA1-0002/IMC
 output_path: /data/meds1_b/imaxt/imc/MA1-0002
@@ -8,9 +9,17 @@ output_path: /data/meds1_b/imaxt/imc/MA1-0002
 # flux-estimation (mean pixel intensities) related parameters
 n_buff: 1
 
-# segmentation-related parameters (IMC 25 and 10)
-ref_channel: 10
+# flatfield correction
 normalized_factor: 30
+
+# segmentation-related parameters
+segmentation:
+  ref_channel: 10 # nuclear channel to be used for segmentation
+  min_distance: 3 # watershed segmentation
+  gb_ksize: 0 # gaussian blur kernel size (for denoising)
+  gb_sigma: 2.0 # gaussian blur sigma (for denoising)
+  adapThresh_blockSize: 15 # kernel size for background removal
+  adapThresh_constant: -7.5 # pixel intensity constant for background removal
 
 resources:
   threads: 1
