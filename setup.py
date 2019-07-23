@@ -47,6 +47,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://gitlab.ast.cam.ac.uk/imaxt/imc_pipeline',
-    version='0.1.3',
+    version='0.1.4',
     zip_safe=False,
 )
