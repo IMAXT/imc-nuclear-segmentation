@@ -51,12 +51,48 @@ Create a file with this output
 (e.g. ``imc_pipeline.yml``) and
 modify at least the input path ``img_path`` and the output ``output_path``.
 
+.. note:: ``output_path`` must be a subdirectory in ``/data/meds1_b/imaxt/``
+
 Submitting the pipeline
 -----------------------
 
-In order to submit the pipeline do:
+In order to submit the pipeline you will need an account in the 
+`IMAXT Archive <https://imaxt.ast.cam.ac.uk/archive>`_.
+
+Run a ssh session into the IMAXT login node a do the following:
+
+**Setup environment**
+
+.. code-block:: python
+
+    conda activate imaxt
+
+**Setup credentials**
+
+.. code-block:: python
+
+    owl api login
+
+Use your archive username and password.
+
+**Submit the pipeline**
 
 .. code-block:: python
 
     owl submit pipeline --conf imc_pipeline.yaml
 
+The command above hould return a ``jobID`` number.
+
+**Check status in the command line**
+
+Pipeline status and log messages can be checked using:
+
+.. code-block:: python
+
+    owl pipeline status jobID
+
+where ``jobID`` is the pipeline number.
+
+**Check status in the archive**
+
+Progress can be monitored from the Web at https://imaxt.ast.cam.ac.uk/archive/owl/
