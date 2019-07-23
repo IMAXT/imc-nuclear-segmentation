@@ -14,7 +14,7 @@ normalized_factor: 30
 
 # segmentation-related parameters
 segmentation:
-  ref_channel: 10 # nuclear channel to be used for segmentation
+  ref_channel: 25 # nuclear channel to be used for segmentation
   min_distance: 3 # watershed segmentation
   gb_ksize: 0 # gaussian blur kernel size (for denoising)
   gb_sigma: 2.0 # gaussian blur sigma (for denoising)
