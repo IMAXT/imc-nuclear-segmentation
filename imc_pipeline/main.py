@@ -51,7 +51,7 @@ def main(
         raise FileNotFoundError(img_path)
 
     output_path = Path(output_path)
-    output_path.mkdir(exist_ok=True)
+    output_path.mkdir(parents=True, exist_ok=True)
 
     img_list = preprocess(img_path, output_path / 'cubes')
 
