@@ -23,5 +23,6 @@ segmentation:
 
 resources:
   threads: 1
-  workers: 6
-  memory: 6GB
+  workers: 2
+  procs: 5
+  memory: 30GB
