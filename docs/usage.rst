@@ -59,7 +59,7 @@ Submitting the pipeline
 In order to submit the pipeline you will need an account in the 
 `IMAXT Archive <https://imaxt.ast.cam.ac.uk/archive>`_.
 
-Run a ssh session into the IMAXT login node a do the following:
+Run an ssh session into the IMAXT login node and type the following:
 
 **Setup environment**
 
@@ -81,7 +81,7 @@ Use your archive username and password.
 
     owl submit pipeline --conf imc_pipeline.yaml
 
-The command above hould return a ``jobID`` number.
+The command above returns a ``jobID`` number.
 
 **Check status in the command line**
 
