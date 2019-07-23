@@ -174,5 +174,7 @@ texinfo_documents = [
 ]
 
 
-def setup(app):
-    sphinx.apidoc.main(['-f', '-o', 'docs/source', 'imc_pipeline'])
+# import sphinx.apidoc
+
+# def setup(app):
+#     sphinx.apidoc.main(['-f', '-o', 'docs/source', 'imc_pipeline'])
