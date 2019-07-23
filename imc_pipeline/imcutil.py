@@ -449,7 +449,9 @@ def random_color() -> List[int]:
     return [random.randint(0, 255) for i in range(3)]
 
 
-def get_binary_image(img_8bit):
+def get_binary_image(
+    img_8bit, gb_ksize, gb_sigma, adapThresh_blockSize, adapThresh_constant
+):
     """[summary]
 
     Parameters
@@ -464,30 +466,23 @@ def get_binary_image(img_8bit):
     """
     maxPixVal = 2 ** 8 - 1
 
-    # denoise image
-    gb_ksize = 0  # Gaussian Blur parameters
-    gb_sigma = 2.0  # Gaussian Blur parameters
-
     img_8bitDenoised = cv2.GaussianBlur(
         img_8bit, (gb_ksize, gb_ksize), sigmaX=gb_sigma, sigmaY=gb_sigma
     )
-    # binarize & remove background
-    adapThresh_blcokSize = 15
-    adapThresh_constant = -7.5
 
     img_binary = cv2.adaptiveThreshold(
         img_8bitDenoised,
         maxPixVal,
         cv2.ADAPTIVE_THRESH_MEAN_C,
         cv2.THRESH_BINARY,
-        adapThresh_blcokSize,
+        adapThresh_blockSize,
         adapThresh_constant,
     )
 
     return img_binary
 
 
-def apply_wShed_and_get_cluster_labels(img_8bit, img_binary):
+def apply_wShed_and_get_cluster_labels(img_8bit, img_binary, min_distance):
     """Watershed segmentation
 
     Parameters
@@ -506,7 +501,9 @@ def apply_wShed_and_get_cluster_labels(img_8bit, img_binary):
 
     D = ndimage.distance_transform_edt(img_binary)
 
-    localMax = peak_local_max(D, indices=False, min_distance=3, labels=img_binary)
+    localMax = peak_local_max(
+        D, indices=False, min_distance=min_distance, labels=img_binary
+    )
 
     # perform a connected component analysis on the local peaks,
     # using 8-connectivity, then appy the Watershed algorithm
@@ -703,7 +700,7 @@ def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
     return imgOpencv_8bit_flat_normalized
 
 
-def process_image(img_file, ref_channel, n_buff, normalized_factor, outputPath):
+def process_image(img_file, n_buff, normalized_factor, segmentation, outputPath):
     """[summary]
 
     Parameters
@@ -730,6 +727,7 @@ def process_image(img_file, ref_channel, n_buff, normalized_factor, outputPath):
 
     log.info('Processing %s, n_tot_channel: %s', img_file, len(all_frames))
 
+    ref_channel = segmentation['ref_channel']
     ref_frame = all_frames[ref_channel - 1]
     ref_frame_8bit = normalize_channel(ref_frame, normalized_factor)
 
@@ -743,11 +741,15 @@ def process_image(img_file, ref_channel, n_buff, normalized_factor, outputPath):
     cv2.imwrite(f'{out}/{img_name}.jpg', ref_frame_8bit)
 
     img_binary = get_binary_image(
-        ref_frame_8bit_flat_normalized
+        ref_frame_8bit_flat_normalized,
+        segmentation['gb_ksize'],
+        segmentation['gb_sigma'],
+        segmentation['adapThresh_blockSize'],
+        segmentation['adapThresh_constant'],
     )  # <---------------------------------------------- change here
 
     labels = apply_wShed_and_get_cluster_labels(
-        ref_frame_8bit_flat_normalized, img_binary
+        ref_frame_8bit_flat_normalized, img_binary, segmentation['min_distance']
     )  # <-------------------- change here
 
     mask_img = create_mask_image(labels)

@@ -13,41 +13,32 @@ log = logging.getLogger('owl.daemon.pipeline')
 
 
 def main(
-    ref_channel=None,
-    n_buff=None,
-    normalized_factor=None,
-    cat_format=None,
+    n_buff: int = None,
+    normalized_factor: int = None,
     img_path=None,
     output_path=None,
-    output_key=None,
-    output_key_ref=None,
-    output_key_mask=None,
-    output_key_cat=None,
+    segmentation=None,
 ):
-    """IMC segmentation pipeline
+    """IMC pipeline.
 
     Parameters
     ----------
-    ref_channel : [type], optional
-        [description] (the default is None, which [default_description])
-    normalized_factor : [type], optional
-        [description] (the default is None, which [default_description])
-    imgFormat : [type], optional
-        [description] (the default is None, which [default_description])
-    imgFormatOut : [type], optional
-        [description] (the default is None, which [default_description])
-    catFormat : [type], optional
-        [description] (the default is None, which [default_description])
-    imgPath : [type], optional
-        [description] (the default is None, which [default_description])
-    output_key : [type], optional
-        [description] (the default is None, which [default_description])
-    output_key_ref : [type], optional
-        [description] (the default is None, which [default_description])
-    output_key_mask : [type], optional
-        [description] (the default is None, which [default_description])
-    output_key_cat : [type], optional
-        [description] (the default is None, which [default_description])
+    n_buff
+        Number of pixels expaded around the segmented cell
+        (excluding the cell itself)
+    normalized_factor
+        Pixel intensity normalization factor
+    img_path : [type], optional
+        [description], by default None
+    output_path : [type], optional
+        [description], by default None
+    segmentation : [type], optional
+        [description], by default None
+
+    Raises
+    ------
+    FileNotFoundError
+        [description]
     """
     # TODO: Complete the docstring
 
@@ -67,7 +58,7 @@ def main(
     futures = []
     for img_file in img_list:
         res = delayed(imcutil.process_image)(
-            img_file, ref_channel, n_buff, normalized_factor, output_path
+            img_file, n_buff, normalized_factor, segmentation, output_path
         )
         fut = client.compute(res)
         futures.append(fut)
