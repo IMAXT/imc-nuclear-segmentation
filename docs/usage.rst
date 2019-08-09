@@ -41,10 +41,7 @@ will display a default configuration file similar to:
         adapThresh_constant: -7.5 # pixel intensity constant for background removal
 
     resources:
-    threads: 1
-    workers: 2
-    procs: 5
-    memory: 30GB
+      workers: 6
 
 
 Create a file with this output
