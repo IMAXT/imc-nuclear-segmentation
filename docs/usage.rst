@@ -76,7 +76,7 @@ Use your archive username and password.
 
 .. code-block:: python
 
-    owl submit pipeline --conf imc_pipeline.yaml
+    owl pipeline submit --conf imc_pipeline.yaml
 
 The command above returns a ``jobID`` number.
 
