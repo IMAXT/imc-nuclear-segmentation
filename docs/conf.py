@@ -21,7 +21,7 @@
 import os
 import sys
 
-import sphinx.apidoc
+# import sphinx.apidoc
 
 import imc_pipeline
 

@@ -4,7 +4,7 @@ stages:
 
 test:
   stage: test
-  image: imaxt/jimaxt:latest
+  image: imaxt/casu-notebook:latest
   tags:
     - python
   script:
@@ -19,7 +19,7 @@ test:
 
 deploy:
   stage: deploy
-  image: imaxt/jimaxt:latest
+  image: imaxt/casu-notebook:latest
   tags:
     - python
   only:
