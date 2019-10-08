@@ -41,7 +41,7 @@ def preprocess(input_dir: Path, output_dir: Path) -> List[Path]:
                 filelist.append(output)
                 continue
 
-            imgs = [TiffImage(im).asarray() for im in cube.glob('*.tif')]
+            imgs = [TiffImage(im).asarray() for im in sorted(cube.glob('*.tif'))]
             imgs = np.stack(imgs).astype('uint16')
             imgs[imgs == np.inf] = 0
 
