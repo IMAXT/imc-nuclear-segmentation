@@ -16,6 +16,7 @@ requirements = [
     'scikit-image',
     'astropy',
     'pillow',
+    'xarray',
     'imaxt-image',
 ]
 
