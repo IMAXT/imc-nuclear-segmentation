@@ -62,7 +62,8 @@ Contributing code
      $ git push --set-upstream origin name-of-your-bugfix-or-feature
 
    Now you can make your changes. Note that the code should adhere to the
-   :doc:`../../guide/style` and :doc:`../../guide/numpydoc`.
+   :ref:`Python style guide<imaxt:style-guide-main>` and
+   :ref:`Documenting Python APIs<imaxt:numpydoc-format>` documents.
 
 4. When all changes are done, check that they pass flakes8 and the tests::
 

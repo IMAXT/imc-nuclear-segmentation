@@ -21,9 +21,10 @@
 import os
 import sys
 
+import imc_pipeline
+
 # import sphinx.apidoc
 
-import imc_pipeline
 
 sys.path.insert(0, os.path.abspath('..'))
 
@@ -173,6 +174,15 @@ texinfo_documents = [
     )
 ]
 
+# -- Extension configuration -------------------------------------------------
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'numpy': ('https://docs.scipy.org/doc/numpy', None),
+    'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
+    'dask': ('http://docs.dask.org/en/latest', None),
+    'distributed': ('https://distributed.readthedocs.io/en/latest/', None),
+    'imaxt': ('https://imaxt.ast.cam.ac.uk/docs', None),
+}
 
 # import sphinx.apidoc
 
