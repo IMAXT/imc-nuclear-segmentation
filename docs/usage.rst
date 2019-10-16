@@ -1,6 +1,9 @@
 Usage
 =====
 
+
+.. _imc_pipedef:
+
 Pipeline definition file
 -------------------------
 

@@ -7,5 +7,6 @@ IMC Pipeline
    readme
    usage
    modules
+   contributing
    authors
    history
