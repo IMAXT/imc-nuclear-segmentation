@@ -49,4 +49,5 @@ setup(
     url='https://gitlab.ast.cam.ac.uk/imaxt/imc_pipeline',
     version='0.1.7',
     zip_safe=False,
+    dependency_links=['https://imaxt.ast.cam.ac.uk/pip/imaxt-image'],
 )
