@@ -3,12 +3,12 @@ import numpy as np
 
 
 class Contour:
-    """[summary]
+    """A contour class in order to extract shape parameters for extracted contours.
 
     Parameters
     ----------
-    cnt : [type]
-        [description]
+    cnt : [list]
+        List of detected contours.
     """
 
     # TODO: This needs to go in the docstring above

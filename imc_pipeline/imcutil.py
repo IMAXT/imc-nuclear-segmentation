@@ -20,21 +20,21 @@ log = logging.getLogger('owl.daemon.pipeline')
 
 
 def get_cnt_mask(cluster_index, sp_arr, labels_shape):
-    """[summary]
+    """The function reads cluster index as well as associated data in the form of sparse matrix and returns a list of contour masks.
 
     Parameters
     ----------
-    cluster_index : [type]
-        [description]
-    sp_arr : [type]
-        [description]
-    labels_shape : [type]
-        [description]
+    cluster_index : [list]
+        list of cluster indices
+    sp_arr : [list]
+        sparse matrix associated with cluster indices
+    labels_shape : [list]
+        cluster labels (order) associated with cluster indices
 
     Returns
     -------
-    [type]
-        [description]
+    [list, list]
+        Contour masks and their top left positions
     """
     cnt_y_index, cnt_x_index = np.unravel_index(
         sp_arr.indices[sp_arr.data == cluster_index], labels_shape
@@ -63,15 +63,15 @@ def get_contour_in_mask(cnt_mask, cnt_topLeft_P):
 
     Parameters
     ----------
-    cnt_mask : [type]
-        [description]
-    cnt_topLeft_P : [type]
-        [description]
+    cnt_mask : [list]
+        Contour mask
+    cnt_topLeft_P : [list]
+        Contour top left position
 
     Returns
     -------
-    [type]
-        [description]
+    [list]
+        Contour 
     """
     # TODO: why do we need to use .copy() ?
     cnts = cv2.findContours(cnt_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -86,17 +86,17 @@ def get_contour_in_mask(cnt_mask, cnt_topLeft_P):
 
 
 def get_feature_table(n_valid_cnt=0):
-    """[summary]
+    """Setup an empty output table with feature columns with necessary number of rows (=n_valid_cnt). The user can change the number of output columns using the keyword 'ch' which currently is set to 40. If the number of measured feature is less than 'ch', then the rest of feature column are set to zero. Else, the value of 'ch' must be increased. As a rule of thumb, ch >= (# of calibration channels + # anti-body channels). As an example, for an IMC image CUBE with 5 calibration channel and 23 antibody channels, ch should be >= 28 (5 + 23). 
 
     Parameters
     ----------
     n_valid_cnt : int, optional
-        [description] (the default is 0, which [default_description])
+        Number of extracted contours (the default is 0, which [default_description])
 
     Returns
     -------
-    [type]
-        [description]
+    [astropy.table]
+        An empty table with number of rows equal to n_valid_cnt and necessary feature columns
     """
     # initialize number of elements
 
@@ -318,32 +318,32 @@ def get_feature_table(n_valid_cnt=0):
 def extract_features_and_update_catalog(
     img_16bit, cnt, t_final, n_cell, minCntLength, imgW, imgH, all_frames, n_buff
 ):
-    """[summary]
+    """The function, extracts information for each segmented cell and record it in the table already defined. Each piece of information extracted for the same cell, would be assigned to a feature column in the input table. Each row in the table is associated with one cell. Therefore the input table which originally is empty, would be populated with individual cell's information. The function returns as a final output, the number of cells detected.
 
     Parameters
     ----------
-    img_16bit : [type]
-        [description]
-    cnt : [type]
-        [description]
-    t_final : [type]
-        [description]
-    n_cell : [type]
-        [description]
-    minCntLength : [type]
-        [description]
-    imgW : [type]
-        [description]
-    imgH : [type]
-        [description]
-    all_frames : [type]
-        [description]
+    img_16bit : [numpy array]
+        Input IMC image cube (16-bit) for flux or mean pixel intensity estimation.
+    cnt : [list]
+        List of detected cell contours
+    t_final : [astropy table]
+        Final output catalog
+    n_cell : [int]
+        Number of detected cells
+    minCntLength : [int]
+        Minimum length of a detected contour. This should be always greate than 5.
+    imgW : [int]
+        IMC image width (constant across all channels for the same slice)
+    imgH : [int]
+        IMC image height (constant across all channels for the same slice)
+    all_frames : [numpy array]
+        Input IMC image cube (16-bit) for flux or mean pixel intensity estimation.
     n_buff : int
         buffer pixel width within which the flux will be measured around the main cell. If n_buff = 0, it is as usual (no boundary around cell)
     Returns
     -------
-    [type]
-        [description]
+    [int]
+        Number of detected cells after filtering out bad ones.
     """
 
     # constants
@@ -439,12 +439,12 @@ def extract_features_and_update_catalog(
 
 
 def random_color() -> List[int]:
-    """[summary]
+    """Creating a list of random, 8-bit, RGB colours.
 
     Returns
     -------
-    [type]
-        [description]
+    [list]
+        A list of three RGB values (each range from 0 to 255)
     """
     return [random.randint(0, 255) for i in range(3)]
 
@@ -452,17 +452,31 @@ def random_color() -> List[int]:
 def get_binary_image(
     img_8bit, gb_ksize, gb_sigma, adapThresh_blockSize, adapThresh_constant
 ):
-    """[summary]
+    """The functions reads an 8-bit (single channel) image and creates a binarised version to be used for segmentation.
 
     Parameters
     ----------
-    img_8bit : [type]
-        [description]
+    img_8bit : [numpy array]
+        Single channel numpy array
+
+    gb_ksize : 
+	Gaussian kernel size. ksize.width and ksize.height can differ but they both must be positive and odd. Or, they can be zero’s and then they are computed from sigma* .
+
+    gb_sigma : 
+	Gaussian kernel standard deviation (the same along X and Y).
+
+    adapThresh_blockSize : 
+	Size of a pixel neighborhood that is used to calculate a threshold value for the pixel: 3, 5, 7, and so on.
+ 
+    adapThresh_constant : 
+	Constant subtracted from the mean or weighted mean. Normally, it is positive but may be zero or negative as well.
+
+	
 
     Returns
     -------
-    [type]
-        [description]
+    [numpy array]
+        Single channel binarised image (only 0 and 255)
     """
     maxPixVal = 2 ** 8 - 1
 
@@ -491,19 +505,19 @@ def apply_wShed_and_get_cluster_labels(
     adapThresh_blockSize,
     adapThresh_constant,
 ):
-    """Watershed segmentation
+    """Apply watershed segmentation
 
     Parameters
     ----------
-    img_8bit : [type]
-        [description]
-    img_binary : [type]
-        [description]
+    img_8bit : [numpy array]
+        Single channel 8-bit image
+    img_binary : [numpy array]
+        Single channel, 8-bit, binarised (only 0 and 255) image.
 
     Returns
     -------
-    [type]
-        [description]
+    [list]
+        Cluster labels
     """
     img_binary = get_binary_image(
         img_8bit, gb_ksize, gb_sigma, adapThresh_blockSize, adapThresh_constant
@@ -527,21 +541,21 @@ def apply_wShed_and_get_cluster_labels(
 
 # preparing the final output catalog
 def create_t_final(labels, img_16bit, all_frames, n_buff):
-    """[summary]
+    """Creating the final output catalogue
 
     Parameters
     ----------
-    labels : [type]
-        [description]
-    img_16bit : [type]
-        [description]
+    labels : [list]
+        Cluster labels found using watershed segmentation
+    img_16bit : [numpy array]
+        Input 16-bit, IMC image cube
     all_frames : [type]
-        [description]
+        Input 16-bit, IMC image cube
 
     Returns
     -------
-    [type]
-        [description]
+    [astropy table]
+        Final output table
     """
 
     # loop over the unique labels returned by the Watershed
@@ -594,11 +608,11 @@ def create_t_final(labels, img_16bit, all_frames, n_buff):
 
 
 def create_mask_image(labels):
-    """[summary]
+    """ ?? TO BE ADDED LATER ??
 
     Parameters
     ----------
-    labels : [type]
+    labels : [list]
         [description]
 
     Returns
@@ -628,19 +642,19 @@ def _normalize_minmax(
 
 # convert opencv_16bit to normalized opencv 8bit
 def normalize_channel(img, norm_factor):
-    """[summary]
+    """This function reads a 16-bit IMC channel and returns a normalised 8-bit version of that.
 
     Parameters
     ----------
-    imgOpencv_16bit : [type]
-        [description]
-    normalized_factor : [type]
-        [description]
+    imgOpencv_16bit : [numpy array]
+        Single channel IMC, 16-bit image
+    normalized_factor : [int]
+        [*10^{-2} percent; Recommended 10 to 50] During the processing, the IMC pipeline converts 16-bit images into 8-bit and recalculates the pixel values of the image so the range is equal to the maximum range for the data type. However, to maximise the image contrast, some of the pixels are allowed to become saturated. Therefore, increasing this value increases the overall contrast. If set to 0, there would be no saturated pixels. But in practice, this value should be greater than zero to prevent a few outlying pixel from causing the histogram stretch to not work as intended.
 
     Returns
     -------
-    [type]
-        [description]
+    [numpy array]
+        Single channel IMC, normalised 8-bit channel
     """
     img_norm = _normalize_minmax(img, 0, 2 ** 16)
     img_8bit = _normalize_minmax(img_norm * norm_factor, 0, 255, dtype=np.uint8)
@@ -666,19 +680,19 @@ def get_frames(cube: Image) -> List[np.ndarray]:
 
 
 def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
-    """[summary]
+    """The function correct for the observed pixel intensity inhomogeneity across the image
 
     Parameters
     ----------
-    imgOpencv_16bit : [type]
-        [description]
-    normalized_factor : [type]
-        [description]
+    imgOpencv_16bit : [numpy array]
+        Single channel 16-bit image
+    normalized_factor : [int]
+        [*10^{-2} percent; Recommended 10 to 50] During the processing, the IMC pipeline converts 16-bit images into 8-bit and recalculates the pixel values of the image so the range is equal to the maximum range for the data type. However, to maximise the image contrast, some of the pixels are allowed to become saturated. Therefore, increasing this value increases the overall contrast. If set to 0, there would be no saturated pixels. But in practice, this value should be greater than zero to prevent a few outlying pixel from causing the histogram stretch to not work as intended.
 
     Returns
     -------
-    [type]
-        [description]
+    [numpy array]
+        Intensity corrected, 16-bit single channel, image 
     """
     # float means the array only e.g. float16 - So it is not an image (which is uint8, uint16, or uint32)
     imgOpencv_16bit_float = imgOpencv_16bit.astype(np.float)
@@ -711,23 +725,23 @@ def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
 
 
 def process_image(img_file, n_buff, normalized_factor, segmentation, outputPath):
-    """[summary]
+    """The function reads segmentation parameters and performs watershed segmentation. During the process, it does also correct for the observed pixel intensity inhomogeneity across the image (still under investigation of the source of the existence of such an inhomogeneity). The function also record a catalog of detected objects (here cell nuclei) on local disk.
 
     Parameters
     ----------
-    img_file : [type]
-        [description]
-    ref_channel : [type]
-        [description]
-    normalized_factor : [type]
-        [description]
-    outputPath : [type]
-        [description]
+    img_file : [numpy array]
+        Input IMC image
+    ref_channel : [int]
+        This is the IMC channel to be used as a reference image for segmentation (the best nuclear channel)
+    normalized_factor : [int]
+        [*10^{-2} percent; Recommended 10 to 50] During the processing, the IMC pipeline converts 16-bit images into 8-bit and recalculates the pixel values of the image so the range is equal to the maximum range for the data type. However, to maximise the image contrast, some of the pixels are allowed to become saturated. Therefore, increasing this value increases the overall contrast. If set to 0, there would be no saturated pixels. But in practice, this value should be greater than zero to prevent a few outlying pixel from causing the histogram stretch to not work as intended.
+    outputPath : [str]
+        Location to otput final catalogues of detected cells.
 
     Returns
     -------
-    [type]
-        [description]
+    [str]
+        Name of recorded catalog
     """
     # read 16-bit data cube
     # img_cube = Image.open(img_file)
@@ -787,17 +801,17 @@ def process_image(img_file, n_buff, normalized_factor, segmentation, outputPath)
 
 
 def map_uint16_to_uint8_skimage(img_16bit):
-    """[summary]
+    """Converting 16-bit single channel image to 8-bit single channel image.
 
     Parameters
     ----------
-    img_16bit : [type]
-        [description]
+    img_16bit : [numpy array]
+        Single channel 16-bit image
 
     Returns
     -------
-    [type]
-        [description]
+    [numpy array]
+        Single channel 8-bit image
     """
 
     # Converting the input 16-bit image to uint8 dtype (using Scikit-Image)

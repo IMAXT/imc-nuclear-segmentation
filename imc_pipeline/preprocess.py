@@ -11,20 +11,18 @@ log = logging.getLogger('owl.daemon.pipeline')
 
 
 def preprocess(input_dir: Path, output_dir: Path) -> List[Path]:
-    """Preprocess IMC input image directory.
-
-    Individual images are saved as cubes.
+    """ Converts OME.TIFF images (associated with individual IMC channels of the same slice) into a single cube TIFF image: The IMC pipeline reads image cubes i.e. a single TIFF image file, containing all IMC image channels for the same slice. If the format of the input image is OME.TIFF (which is the data packager format), then this function convert that format into cube TIFF format and returns a list of the name/location of converted images.
 
     Parameters
     ----------
     input_dir
-        Input directory containing images
+        Input directory containing OME.TIFF images
     output_dir
-        Directory where cubes are written
+        Directory where TIFF cubes are written
 
     Returns
     -------
-    list of filenames, each containing a cube
+    list of filenames (one per image cube)
     """
     if not output_dir.exists():
         output_dir.mkdir()

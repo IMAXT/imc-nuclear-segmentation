@@ -28,10 +28,10 @@ def main(
         (excluding the cell itself)
     normalized_factor
         Pixel intensity normalization factor
-    img_path : [type], optional
-        [description], by default None
-    output_path : [type], optional
-        [description], by default None
+    img_path : [str], optional
+        Path to input IMC image files. This is where you keep IMC images that you want to analyze.
+    output_path : [str], optional
+        # Path to IMC pipeline output products (results of analysis are recorded here)
     segmentation : [type], optional
         [description], by default None
 

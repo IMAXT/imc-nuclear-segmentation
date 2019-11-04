@@ -25,23 +25,22 @@ will display a default configuration file similar to:
     name: imc
     extra_pip_packages: imc-pipeline
 
-    img_path: /data/meds1_a/imaxtapp/incoming/MA1-0002/IMC
-    output_path: /data/meds1_b/imaxt/imc/MA1-0002
+    img_path: /data/meds1_a/imaxtapp/incoming/MA1-0002/IMC	# Path to input IMC image files. This is where you keep IMC images that you want to analyze. 
+    output_path: /data/meds1_b/imaxt/imc/MA1-0002		# Path to IMC pipeline output products (results of analysis are recorded here)
 
-    # flux-estimation (mean pixel intensities) related parameters
-    n_buff: 1
+    n_buff: 1							# [pixels ; Recommended 0 < n_buff < 5 ] This is the width of periphery (or thickness of the edge) around each detected nucleus within which, the pipeline estimates the mean value of pixel intensities. If set to zero (=0), the pipeline does not measure any pixel intensity within the edges of detected nuclei. If too large e.g. > 5 [pixels], then there is a risk that the periphery is merged with peripheries of nearby cells (unless the cell is located in an isolated area) 
 
-    # flatfield correction
-    normalized_factor: 30
+    normalized_factor: 30					# [*10^{-2} percent; Recommended 10 to 50] During the processing, the IMC pipeline converts 16-bit images into 8-bit and recalculates the pixel values of the image so the range is equal to the maximum range for the data type. However, to maximise the image contrast, some of the pixels are allowed to become saturated. Therefore, increasing this value increases the overall contrast. If set to 0, there would be no saturated pixels. But in practice, this value should be greater than zero to prevent a few outlying pixel from causing the histogram stretch to not work as intended.
 
     # segmentation-related parameters
     segmentation:
-        ref_channel: 25 # nuclear channel to be used for segmentation
-        min_distance: 3 # watershed segmentation
-        gb_ksize: 0 # gaussian blur kernel size (for denoising)
-        gb_sigma: 2.0 # gaussian blur sigma (for denoising)
-        adapThresh_blockSize: 15 # kernel size for background removal
-        adapThresh_constant: -7.5 # pixel intensity constant for background removal
+        ref_channel: 25 					# The IMC channel to be used for segmentation. This *should* be one of nuclear channels (check a sample image manually in imageJ or FIJI)
+        min_distance: 3 					# [pixels; Watershed segmentation] Smaller values, tends to oversegmentation (finding too many cells). 
+        gb_ksize: 0 						# [Denoising] Gaussian blur kernel size - This cause some of the background noise to be removed before watershed segmentation.
+        gb_sigma: 2.0 						# [Denoising] Gaussian blur sigma - This cause some of the background noise to be removed before watershed segmentation.
+        adapThresh_blockSize: 15 				# [Image binarization; Odd integer] Size of a pixel neighborhood (Kernel) that is used to calculate a threshold value for the pixel: 3, 5, 7, and so on. As a rule of thumb, it should be always greater than the largest possible cell diameter observed in the current IMC sample.
+        adapThresh_constant: -7.5 				# [Image binarization; float(recommended < 0)] Constant subtracted from the mean or weighted mean (positive, zero or negative). But it is recommended to use negative values (meaning bright cells in dark background)
+
 
     resources:
       workers: 6
