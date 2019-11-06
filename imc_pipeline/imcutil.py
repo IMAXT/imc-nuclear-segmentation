@@ -20,7 +20,8 @@ log = logging.getLogger('owl.daemon.pipeline')
 
 
 def get_cnt_mask(cluster_index, sp_arr, labels_shape):
-    """The function reads cluster index as well as associated data in the form of sparse matrix and returns a list of contour masks.
+    """The function reads cluster index as well as associated data
+    in the form of sparse matrix and returns a list of contour masks.
 
     Parameters
     ----------
@@ -58,20 +59,19 @@ def get_cnt_mask(cluster_index, sp_arr, labels_shape):
     return cnt_mask, cnt_topLeft_P
 
 
-def get_contour_in_mask(cnt_mask, cnt_topLeft_P):
+def get_contour_in_mask(cnt_mask: List, cnt_topLeft_P: List):
     """Detect contours in the cnt_mask and grab the largest one
 
     Parameters
     ----------
-    cnt_mask : [list]
+    cnt_mask
         Contour mask
-    cnt_topLeft_P : [list]
+    cnt_topLeft_P
         Contour top left position
 
     Returns
     -------
-    [list]
-        Contour 
+    contour
     """
     # TODO: why do we need to use .copy() ?
     cnts = cv2.findContours(cnt_mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -86,12 +86,21 @@ def get_contour_in_mask(cnt_mask, cnt_topLeft_P):
 
 
 def get_feature_table(n_valid_cnt=0):
-    """Setup an empty output table with feature columns with necessary number of rows (=n_valid_cnt). The user can change the number of output columns using the keyword 'ch' which currently is set to 40. If the number of measured feature is less than 'ch', then the rest of feature column are set to zero. Else, the value of 'ch' must be increased. As a rule of thumb, ch >= (# of calibration channels + # anti-body channels). As an example, for an IMC image CUBE with 5 calibration channel and 23 antibody channels, ch should be >= 28 (5 + 23). 
+    """Setup an empty output table with feature columns with necessary number
+    of rows (=n_valid_cnt).
+
+    The user can change the number of output columns
+    using the keyword 'ch' which currently is set to 40.
+    If the number of measured feature is less than 'ch', then the rest of
+    feature column are set to zero. Else, the value of 'ch' must be increased.
+    As a rule of thumb, ch >= (# of calibration channels + # anti-body channels).
+    As an example, for an IMC image CUBE with 5 calibration channel and 23 antibody
+    channels, ch should be >= 28 (5 + 23).
 
     Parameters
     ----------
     n_valid_cnt : int, optional
-        Number of extracted contours (the default is 0, which [default_description])
+        Number of extracted contours (the default is 0)
 
     Returns
     -------
@@ -116,9 +125,7 @@ def get_feature_table(n_valid_cnt=0):
     ]
 
     # intensity parameters: There are 'ch' number of channels for each image
-    ch = (
-        40
-    )  # for the time being, set it to 40. Alternatively, we can read it from the number of available channels in the input data cube
+    ch = 40  # for the time being, set it to 40. Alternatively, we can read it from the number of available channels in the input data cube
     flux = np.zeros((ch, n_valid_cnt), dtype=np.float32)
     f_buffer = np.zeros((ch, n_valid_cnt), dtype=np.float32)
 
@@ -452,26 +459,25 @@ def random_color() -> List[int]:
 def get_binary_image(
     img_8bit, gb_ksize, gb_sigma, adapThresh_blockSize, adapThresh_constant
 ):
-    """The functions reads an 8-bit (single channel) image and creates a binarised version to be used for segmentation.
+    """The functions reads an 8-bit (single channel) image and creates a
+    binarised version to be used for segmentation.
 
     Parameters
     ----------
     img_8bit : [numpy array]
         Single channel numpy array
-
-    gb_ksize : 
-	Gaussian kernel size. ksize.width and ksize.height can differ but they both must be positive and odd. Or, they can be zero’s and then they are computed from sigma* .
-
-    gb_sigma : 
-	Gaussian kernel standard deviation (the same along X and Y).
-
-    adapThresh_blockSize : 
-	Size of a pixel neighborhood that is used to calculate a threshold value for the pixel: 3, 5, 7, and so on.
- 
-    adapThresh_constant : 
-	Constant subtracted from the mean or weighted mean. Normally, it is positive but may be zero or negative as well.
-
-	
+    gb_ksize
+        Gaussian kernel size. ksize.width and ksize.height can differ
+        but they both must be positive and odd. Or, they can be zeros
+        and then they are computed from sigma* .
+    gb_sigma
+        Gaussian kernel standard deviation (the same along X and Y).
+    adapThresh_blockSize
+        Size of a pixel neighborhood that is used to calculate a threshold
+        value for the pixel: 3, 5, 7, and so on.
+    adapThresh_constant
+        Constant subtracted from the mean or weighted mean. Normally, it is
+        positive but may be zero or negative as well.
 
     Returns
     -------
@@ -642,14 +648,24 @@ def _normalize_minmax(
 
 # convert opencv_16bit to normalized opencv 8bit
 def normalize_channel(img, norm_factor):
-    """This function reads a 16-bit IMC channel and returns a normalised 8-bit version of that.
+    """This function reads a 16-bit IMC channel and returns a
+    normalised 8-bit version of that.
 
     Parameters
     ----------
     imgOpencv_16bit : [numpy array]
         Single channel IMC, 16-bit image
     normalized_factor : [int]
-        [*10^{-2} percent; Recommended 10 to 50] During the processing, the IMC pipeline converts 16-bit images into 8-bit and recalculates the pixel values of the image so the range is equal to the maximum range for the data type. However, to maximise the image contrast, some of the pixels are allowed to become saturated. Therefore, increasing this value increases the overall contrast. If set to 0, there would be no saturated pixels. But in practice, this value should be greater than zero to prevent a few outlying pixel from causing the histogram stretch to not work as intended.
+        [10^{-2} percent; Recommended 10 to 50] During the
+        processing, the IMC pipeline converts 16-bit images
+        into 8-bit and recalculates the pixel values of the
+        image so the range is equal to the maximum range for
+        the data type. However, to maximise the image contrast,
+        some of the pixels are allowed to become saturated.
+        Therefore, increasing this value increases the overall contrast.
+        If set to 0, there would be no saturated pixels. But in practice,
+        this value should be greater than zero to prevent a few outlying
+        pixel from causing the histogram stretch to not work as intended.
 
     Returns
     -------
@@ -687,21 +703,30 @@ def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
     imgOpencv_16bit : [numpy array]
         Single channel 16-bit image
     normalized_factor : [int]
-        [*10^{-2} percent; Recommended 10 to 50] During the processing, the IMC pipeline converts 16-bit images into 8-bit and recalculates the pixel values of the image so the range is equal to the maximum range for the data type. However, to maximise the image contrast, some of the pixels are allowed to become saturated. Therefore, increasing this value increases the overall contrast. If set to 0, there would be no saturated pixels. But in practice, this value should be greater than zero to prevent a few outlying pixel from causing the histogram stretch to not work as intended.
+        [10^{-2} percent; Recommended 10 to 50] During the processing,
+        the IMC pipeline converts 16-bit images into 8-bit and recalculates
+        the pixel values of the image so the range is equal to the maximum
+        range for the data type. However, to maximise the image contrast,
+        some of the pixels are allowed to become saturated. Therefore,
+        increasing this value increases the overall contrast. If set to 0,
+        there would be no saturated pixels. But in practice, this value should
+        be greater than zero to prevent a few outlying pixel from causing the
+        histogram stretch to not work as intended.
 
     Returns
     -------
     [numpy array]
-        Intensity corrected, 16-bit single channel, image 
+        Intensity corrected, 16-bit single channel, image
     """
-    # float means the array only e.g. float16 - So it is not an image (which is uint8, uint16, or uint32)
+    # float means the array only e.g. float16 - So it is not an image
+    # (which is uint8, uint16, or uint32)
     imgOpencv_16bit_float = imgOpencv_16bit.astype(np.float)
 
     # TODO: explain choice of sigma=5
     imgOpencv_16bit_filtered = gaussian_filter(imgOpencv_16bit, sigma=5)
     imgOpencv_16bit_filtered_float = imgOpencv_16bit_filtered.astype(np.float16)
-    imgOpencv_16bit_filtered_float_normalized = (
-        imgOpencv_16bit_filtered_float / np.mean(imgOpencv_16bit_filtered)
+    imgOpencv_16bit_filtered_float_normalized = imgOpencv_16bit_filtered_float / np.mean(
+        imgOpencv_16bit_filtered
     )
     # imgOpencv_16bit_normalized = imgOpencv_16bit_filtered_float_normalized.astype(
     #     np.uint16
@@ -725,16 +750,32 @@ def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
 
 
 def process_image(img_file, n_buff, normalized_factor, segmentation, outputPath):
-    """The function reads segmentation parameters and performs watershed segmentation. During the process, it does also correct for the observed pixel intensity inhomogeneity across the image (still under investigation of the source of the existence of such an inhomogeneity). The function also record a catalog of detected objects (here cell nuclei) on local disk.
+    """The function reads segmentation parameters and performs
+    watershed segmentation.
+
+    During the process, it does also correct
+    for the observed pixel intensity inhomogeneity across the image
+    (still under investigation of the source of the existence of such
+    an inhomogeneity). The function also record a catalog of detected
+    objects (here cell nuclei) on local disk.
 
     Parameters
     ----------
     img_file : [numpy array]
         Input IMC image
     ref_channel : [int]
-        This is the IMC channel to be used as a reference image for segmentation (the best nuclear channel)
+        This is the IMC channel to be used as a reference image for
+        segmentation (the best nuclear channel)
     normalized_factor : [int]
-        [*10^{-2} percent; Recommended 10 to 50] During the processing, the IMC pipeline converts 16-bit images into 8-bit and recalculates the pixel values of the image so the range is equal to the maximum range for the data type. However, to maximise the image contrast, some of the pixels are allowed to become saturated. Therefore, increasing this value increases the overall contrast. If set to 0, there would be no saturated pixels. But in practice, this value should be greater than zero to prevent a few outlying pixel from causing the histogram stretch to not work as intended.
+        [10^{-2} percent; Recommended 10 to 50] During the processing,
+        the IMC pipeline converts 16-bit images into 8-bit and recalculates
+        the pixel values of the image so the range is equal to the maximum
+        range for the data type. However, to maximise the image contrast, some
+        of the pixels are allowed to become saturated. Therefore, increasing
+        this value increases the overall contrast. If set to 0, there would be
+        no saturated pixels. But in practice, this value should be greater than
+        zero to prevent a few outlying pixel from causing the histogram stretch
+        to not work as intended.
     outputPath : [str]
         Location to otput final catalogues of detected cells.
 
