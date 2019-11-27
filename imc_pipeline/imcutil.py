@@ -4,6 +4,7 @@ from typing import List
 
 import cv2
 import numpy as np
+import xarray as xr
 from astropy.table import Table
 from PIL import Image
 from scipy import ndimage
@@ -116,9 +117,7 @@ def get_feature_table(n_valid_cnt=0):
     ]
 
     # intensity parameters: There are 'ch' number of channels for each image
-    ch = (
-        40
-    )  # for the time being, set it to 40. Alternatively, we can read it from the number of available channels in the input data cube
+    ch = 40  # for the time being, set it to 40. Alternatively, we can read it from the number of available channels in the input data cube
     flux = np.zeros((ch, n_valid_cnt), dtype=np.float32)
     f_buffer = np.zeros((ch, n_valid_cnt), dtype=np.float32)
 
@@ -661,7 +660,9 @@ def get_frames(cube: Image) -> List[np.ndarray]:
     list of images
     """
     # all_frames = [*map(np.array, ImageSequence.Iterator(cube))]
-    all_frames = TiffImage(cube).asarray()
+    ds = xr.open_zarr(f'{cube}')
+    key = list(ds.keys())[0]
+    all_frames = np.array(ds[key])
     return all_frames
 
 
@@ -686,8 +687,8 @@ def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
     # TODO: explain choice of sigma=5
     imgOpencv_16bit_filtered = gaussian_filter(imgOpencv_16bit, sigma=5)
     imgOpencv_16bit_filtered_float = imgOpencv_16bit_filtered.astype(np.float16)
-    imgOpencv_16bit_filtered_float_normalized = (
-        imgOpencv_16bit_filtered_float / np.mean(imgOpencv_16bit_filtered)
+    imgOpencv_16bit_filtered_float_normalized = imgOpencv_16bit_filtered_float / np.mean(
+        imgOpencv_16bit_filtered
     )
     # imgOpencv_16bit_normalized = imgOpencv_16bit_filtered_float_normalized.astype(
     #     np.uint16
@@ -731,9 +732,10 @@ def process_image(img_file, n_buff, normalized_factor, segmentation, outputPath)
     """
     # read 16-bit data cube
     # img_cube = Image.open(img_file)
-    img_name = img_file.name.replace('.tif', '')
+    img_name = img_file.name.replace('.zarr', '')
 
     all_frames = get_frames(img_file)
+    print(type(all_frames), all_frames.shape)
 
     log.info('Processing %s, n_tot_channel: %s', img_file, len(all_frames))
 
