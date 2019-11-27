@@ -6,6 +6,7 @@ WIP
 ---
 
 * Add contribution guide to documentation.
+* Update docstrings and documents.
 
 0.1.7 (2019-10-08)
 ------------------
