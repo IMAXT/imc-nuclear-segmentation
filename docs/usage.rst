@@ -30,7 +30,6 @@ will display a default configuration file similar to:
 
     n_buff: 1							# [pixels ; Recommended 0 < n_buff < 5 ] This is the width of periphery (or thickness of the edge) around each detected nucleus within which, the pipeline estimates the mean value of pixel intensities. If set to zero (=0), the pipeline does not measure any pixel intensity within the edges of detected nuclei. If too large e.g. > 5 [pixels], then there is a risk that the periphery is merged with peripheries of nearby cells (unless the cell is located in an isolated area) 
 
-    normalized_factor: 30					# [*10^{-2} percent; Recommended 10 to 50] During the processing, the IMC pipeline converts 16-bit images into 8-bit and recalculates the pixel values of the image so the range is equal to the maximum range for the data type. However, to maximise the image contrast, some of the pixels are allowed to become saturated. Therefore, increasing this value increases the overall contrast. If set to 0, there would be no saturated pixels. But in practice, this value should be greater than zero to prevent a few outlying pixel from causing the histogram stretch to not work as intended.
 
     # segmentation-related parameters
     segmentation:
@@ -40,7 +39,9 @@ will display a default configuration file similar to:
         gb_sigma: 2.0 						# [Denoising] Gaussian blur sigma - This cause some of the background noise to be removed before watershed segmentation.
         adapThresh_blockSize: 15 				# [Image binarization; Odd integer] Size of a pixel neighborhood (Kernel) that is used to calculate a threshold value for the pixel: 3, 5, 7, and so on. As a rule of thumb, it should be always greater than the largest possible cell diameter observed in the current IMC sample.
         adapThresh_constant: -7.5 				# [Image binarization; float(recommended < 0)] Constant subtracted from the mean or weighted mean (positive, zero or negative). But it is recommended to use negative values (meaning bright cells in dark background)
-
+	normalized_factor: 30					# [*10^{-2} percent; Recommended 10 to 50] During the processing, the IMC pipeline converts 16-bit images into 8-bit and recalculates the pixel values of the image so the range is equal to the maximum range for the data type. However, to maximise the image contrast, some of the pixels are allowed to become saturated. Therefore, increasing this value increases the overall contrast. If set to 0, there would be no saturated pixels. But in practice, this value should be greater than zero to prevent a few outlying pixel from causing the histogram stretch to not work as intended.
+	aic_apply_intensity_correction: False			# [boolean] - If TRUE, then the algorithm try to create a reference image with uniform pixel intensities. Initially, the algorithm convolve the input image (single channel) with a Gaussian kernel of standard deviation 'aic_sigma' [in pixels ; see next parameter] and then divide the original image by the filtered one. If FALSE, nothing happens and the parameter 'aic_sigma' (see next parameter) is ignored. Further information about the Gaussian filter used can be found here https://docs.scipy.org/doc/scipy-0.16.1/reference/generated/scipy.ndimage.filters.gaussian_filter.html
+	aic_sigma: 5						# [pixels] Standard deviation for Gaussian kernel. Valid only if  aic_apply_intensity_correction = True
 
     resources:
       workers: 6
