@@ -3,14 +3,11 @@ version: 1
 name: imc
 extra_pip_packages: imc-pipeline
 
-img_path: /data/meds1_a/imaxtapp/incoming/MA1-0002/IMC
-output_path: /data/meds1_b/imaxt/imc/MA1-0002
+img_path: /home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/DATA02__3D_stpt_IMC_DataPackager/DATA02__3D_stpt_IMC_DataPackager
+output_path: /home/darius01/myDisk1/myProjects/medical/imaxt/imc/test_output
 
 # flux-estimation (mean pixel intensities) related parameters
 n_buff: 1
-
-# flatfield correction
-normalized_factor: 30
 
 # segmentation-related parameters
 segmentation:
@@ -20,6 +17,9 @@ segmentation:
   gb_sigma: 2.0 # gaussian blur sigma (for denoising)
   adapThresh_blockSize: 15 # kernel size for background removal
   adapThresh_constant: -7.5 # pixel intensity constant for background removal
+  normalized_factor: 10
+  aic_apply_intensity_correction: False
+  aic_sigma: 5
 
 resources:
   workers: 6

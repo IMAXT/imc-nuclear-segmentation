@@ -695,7 +695,7 @@ def get_frames(cube: Image) -> List[np.ndarray]:
     return all_frames
 
 
-def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
+def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor, aic_apply_intensity_correction, aic_sigma):
     """The function correct for the observed pixel intensity inhomogeneity across the image
 
     Parameters
@@ -718,38 +718,37 @@ def get_pseudo_opecv_8bit_flat_image(imgOpencv_16bit, normalized_factor):
     [numpy array]
         Intensity corrected, 16-bit single channel, image
     """
-    # float means the array only e.g. float16 - So it is not an image
-    # (which is uint8, uint16, or uint32)
-    imgOpencv_16bit_float = imgOpencv_16bit.astype(np.float)
-
-    # TODO: explain choice of sigma=5
-    imgOpencv_16bit_filtered = gaussian_filter(imgOpencv_16bit, sigma=5)
-    imgOpencv_16bit_filtered_float = imgOpencv_16bit_filtered.astype(np.float16)
-    imgOpencv_16bit_filtered_float_normalized = imgOpencv_16bit_filtered_float / np.mean(
-        imgOpencv_16bit_filtered
-    )
-    # imgOpencv_16bit_normalized = imgOpencv_16bit_filtered_float_normalized.astype(
-    #     np.uint16
-    # )
-
-    eps_factor = 1000.0  # get rid of zeros in array
-    imgOpencv_16bit_float[np.where(imgOpencv_16bit_float == 0.0)] = 1.0 / eps_factor
-    imgOpencv_16bit_filtered_float_normalized[
-        np.where(imgOpencv_16bit_filtered_float_normalized == 0.0)
-    ] = eps_factor
-
-    imgOpencv_16bit_float_flat = (
-        imgOpencv_16bit_float / imgOpencv_16bit_filtered_float_normalized
-    )
-    imgOpencv_16bit_flat = imgOpencv_16bit_float_flat.astype(np.uint16)
-    imgOpencv_8bit_flat_normalized = normalize_channel(
-        imgOpencv_16bit_flat, normalized_factor
-    )
-
+    if aic_apply_intensity_correction is False:
+        imgOpencv_8bit_flat_normalized = normalize_channel(imgOpencv_16bit, normalized_factor)
+    else:
+        # float means the array only e.g. float16 - So it is not an image
+        # (which is uint8, uint16, or uint32)
+        imgOpencv_16bit_float = imgOpencv_16bit.astype(np.float)
+        # TODO: explain choice of sigma=5
+        imgOpencv_16bit_filtered = gaussian_filter(imgOpencv_16bit, sigma=aic_sigma)
+        imgOpencv_16bit_filtered_float = imgOpencv_16bit_filtered.astype(np.float16)
+        imgOpencv_16bit_filtered_float_normalized = imgOpencv_16bit_filtered_float / np.mean(
+            imgOpencv_16bit_filtered
+        )
+        # imgOpencv_16bit_normalized = imgOpencv_16bit_filtered_float_normalized.astype(
+        #     np.uint16
+        # )
+        eps_factor = 1000.0  # get rid of zeros in array
+        imgOpencv_16bit_float[np.where(imgOpencv_16bit_float == 0.0)] = 1.0 / eps_factor
+        imgOpencv_16bit_filtered_float_normalized[
+            np.where(imgOpencv_16bit_filtered_float_normalized == 0.0)
+        ] = eps_factor
+        imgOpencv_16bit_float_flat = (
+            imgOpencv_16bit_float / imgOpencv_16bit_filtered_float_normalized
+        )
+        imgOpencv_16bit_flat = imgOpencv_16bit_float_flat.astype(np.uint16)
+        imgOpencv_8bit_flat_normalized = normalize_channel(
+            imgOpencv_16bit_flat, normalized_factor
+        )
     return imgOpencv_8bit_flat_normalized
 
 
-def process_image(img_file, n_buff, normalized_factor, segmentation, outputPath):
+def process_image(img_file, n_buff, segmentation, outputPath):
     """The function reads segmentation parameters and performs
     watershed segmentation.
 
@@ -791,14 +790,16 @@ def process_image(img_file, n_buff, normalized_factor, segmentation, outputPath)
     all_frames = get_frames(img_file)
 
     log.info('Processing %s, n_tot_channel: %s', img_file, len(all_frames))
-
+    normalized_factor = segmentation['normalized_factor']
+    aic_apply_intensity_correction = segmentation['aic_apply_intensity_correction']
+    aic_sigma = segmentation['aic_sigma']
     ref_channel = segmentation.pop('ref_channel')
     ref_frame = all_frames[ref_channel - 1]
     ref_frame_8bit = normalize_channel(ref_frame, normalized_factor)
 
     # create pseudo_flat_field_corrected ocv_8-bit image from ocv_16-bit image
     ref_frame_8bit_flat_normalized = get_pseudo_opecv_8bit_flat_image(
-        ref_frame, normalized_factor
+        ref_frame, normalized_factor, aic_apply_intensity_correction, aic_sigma
     )
     out = outputPath / 'reference'
     out.mkdir(exist_ok=True)
@@ -837,6 +838,16 @@ def process_image(img_file, n_buff, normalized_factor, segmentation, outputPath)
     out = outputPath / 'catalogue'
     out.mkdir(exist_ok=True)
     t_final.write(f'{out}/{img_name}.fits', overwrite=True)
+    # ------------------------------
+    # draft image: create a draft image and overlay detected objectes (visualisation only)
+    draft_ref_frame_8bit_flat_normalized = create_draft_RGB_image_for_visualization(
+        ref_frame_8bit_flat_normalized, t_final
+    )
+    # draft image: write on disk
+    out = outputPath / 'reference'
+    out.mkdir(exist_ok=True)
+    cv2.imwrite(f'{out}/draft_{img_name}.tif', draft_ref_frame_8bit_flat_normalized)
+    # -----------------------------------------------------------------------------
     # cv2.imwrite('./test_mask.jpg', masked_image)
     return f'{out}/{img_name}.fits'
 
@@ -863,10 +874,39 @@ def map_uint16_to_uint8_skimage(img_16bit):
     # # library
     from skimage import img_as_ubyte
     import warnings
-
     # conversion
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         img_8bit = img_as_ubyte(img_16bit)
-
     return img_8bit
+
+
+def create_draft_RGB_image_for_visualization(imgOpencv_8bit, t_final):
+    """
+    Create a draft image where detected objects in the catalogue are overlaid for visualisation purpose only.
+
+    Parameters
+    ----------
+    img_8bit : [numpy array]
+        Single channel 8-bit image
+    t_final : [astropy table]
+        Final object catalogue
+
+    Returns
+    -------
+    [numpy array]
+        A three channel BGR/8-bit image with detected objects overlaid on the input image
+
+    """
+
+    imgOpencv_8bit_copy = imgOpencv_8bit.copy()
+    imgOpencv_8bit_copy = cv2.cvtColor(imgOpencv_8bit_copy, cv2.COLOR_GRAY2BGR)
+    imgOpencv_8bit_copy = cv2.applyColorMap(imgOpencv_8bit_copy, cv2.COLORMAP_JET)
+    imgOpencv_8bit_copy = cv2.GaussianBlur(imgOpencv_8bit_copy, (3, 3), 0)
+    # imgOpencv_8bit_copy = cv2.GaussianBlur(imgOpencv_8bit_copy,(0,0),sigmaX = 0.5, sigmaY = 0.5)
+
+    # (ii) overlay position of detected object on this image
+    for rows in t_final:
+        cv2.circle(imgOpencv_8bit_copy, (int(rows['X_image']), int(rows['Y_image'])), 1, (0, 0, 255), -1)
+
+    return imgOpencv_8bit_copy

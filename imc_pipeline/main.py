@@ -14,7 +14,6 @@ log = logging.getLogger('owl.daemon.pipeline')
 
 def main(
     n_buff: int = None,
-    normalized_factor: int = None,
     img_path=None,
     output_path=None,
     segmentation=None,
@@ -26,8 +25,6 @@ def main(
     n_buff
         Number of pixels expaded around the segmented cell
         (excluding the cell itself)
-    normalized_factor
-        Pixel intensity normalization factor
     img_path : [str], optional
         Path to input IMC image files. This is where you keep IMC images that you want to analyze.
     output_path : [str], optional
@@ -58,7 +55,7 @@ def main(
     futures = []
     for img_file in img_list:
         res = delayed(imcutil.process_image)(
-            img_file, n_buff, normalized_factor, segmentation, output_path
+            img_file, n_buff, segmentation, output_path
         )
         fut = client.compute(res)
         futures.append(fut)
