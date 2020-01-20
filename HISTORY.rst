@@ -7,6 +7,12 @@ WIP
 
 * Add contribution guide to documentation.
 * Update docstrings and documents.
+* Add a keyword that marks intensity correction optional
+  (aic_apply_intensity_correction). by default it is False.
+* Add the standard deviation of the Guassian kernel used
+  to convolve the image to do intensity correction (aic_sigma).
+* Output an image with detected objects overlayed on top of reference image.
+* Move normalize_factor keyword to segmentation group.
 
 0.1.7 (2019-10-08)
 ------------------
