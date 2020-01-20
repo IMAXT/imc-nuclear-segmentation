@@ -2,8 +2,8 @@
 History
 =======
 
-WIP
----
+0.2.0 (2020-01-20)
+------------------
 
 * Add contribution guide to documentation.
 * Update docstrings and documents.
