@@ -25,7 +25,7 @@ will display a default configuration file similar to:
     name: imc
     extra_pip_packages: imc-pipeline
 
-    img_path: /data/meds1_a/imaxtapp/incoming/MA1-0002/IMC	# Path to input IMC image files. This is where you keep IMC images that you want to analyze. 
+    img_path: /data/meds1_a/imaxtapp/incoming/MA1-0002/IMC	# Path to files associated with an IMC run. The path should contain either (a) a series of TIF files (*tif *tiff), where each file name is associated with an IMC channel and files together belong to an IMC run (e.g. 23 files if there are 23 channels) or (b) Q00X (x=1, 2, ...) folders.   
     output_path: /data/meds1_b/imaxt/imc/MA1-0002		# Path to IMC pipeline output products (results of analysis are recorded here)
 
     n_buff: 1							# [pixels ; Recommended 0 < n_buff < 5 ] This is the width of periphery (or thickness of the edge) around each detected nucleus within which, the pipeline estimates the mean value of pixel intensities. If set to zero (=0), the pipeline does not measure any pixel intensity within the edges of detected nuclei. If too large e.g. > 5 [pixels], then there is a risk that the periphery is merged with peripheries of nearby cells (unless the cell is located in an isolated area) 
@@ -33,6 +33,7 @@ will display a default configuration file similar to:
 
     # segmentation-related parameters
     segmentation:
+	perform_full_analysis: False 				# if False, only a draft image is produced with detected cells overlaid on the reference (nuclear) channel
         ref_channel: 25 					# The IMC channel to be used for segmentation. This *should* be one of nuclear channels (check a sample image manually in imageJ or FIJI)
         min_distance: 3 					# [pixels; Watershed segmentation] Smaller values, tends to oversegmentation (finding too many cells). 
         gb_ksize: 0 						# [Denoising] Gaussian blur kernel size - This cause some of the background noise to be removed before watershed segmentation.

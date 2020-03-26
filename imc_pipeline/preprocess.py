@@ -52,5 +52,4 @@ def preprocess(input_dir: Path, output_dir: Path) -> List[Path]:
                 log.critical('Cannot save file %s', output)
                 if output.exists():
                     output.unlink()
-
     return filelist

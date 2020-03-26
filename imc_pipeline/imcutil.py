@@ -11,12 +11,148 @@ from scipy.ndimage.filters import gaussian_filter
 from scipy.sparse import csr_matrix
 from skimage.feature import peak_local_max
 from skimage.morphology import watershed
-
+import sys
+import os
 from imaxt_image.image import TiffImage
 
 from .contour import Contour
 
 log = logging.getLogger('owl.daemon.pipeline')
+
+
+def validate_input_params(n_buff, img_path, output_path, segmentation):
+    """This function read input values as entered in the YAML file and checks if they are valid (type, range etc.).
+    Parameters
+    ----------
+    n_buff
+    img_path
+    output_path
+    segmentation
+
+    Returns
+    -------
+    boolean
+        True [if all input parameters are validated] and False [if at least one input is not validated]
+    """
+    # parameter # 1
+    n_buff_min = 1
+    n_buff_max = 4
+    if isinstance(n_buff, int) and n_buff >= n_buff_min and n_buff <= n_buff_max:
+        cond_n_buff = True
+    else:
+        print(f'\n n_buff is not valid.\n n_buff is integer in range [{n_buff_min}, ... ,{n_buff_max}].\n')
+        cond_n_buff = False
+
+    # parameter # 2 (INPUT folder)
+    cond_img_path = os.path.exists(img_path)
+    if not cond_img_path:
+        print(f'\n img_path is not valid (should be string and non-empty).\n')
+
+    # parameter # 3 (OUTPUT folder)
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
+    # parameter #NEW
+    cond_perform_full_analysis = isinstance(segmentation['perform_full_analysis'], bool)
+    if not cond_perform_full_analysis:
+        print(f'\n perform_full_analysis is not valid. It should be a boolean variable e.g., \'False\' or \'True\'.\n')
+
+    # parameter # 4
+    ref_channel_min = 1
+    if isinstance(segmentation['ref_channel'], int) and segmentation['ref_channel'] >= 1:
+        cond_seg_ref_channel = True
+    else:
+        print(f'\n ref_channel is not valid (should be integer and >= {ref_channel_min}.\n')
+        cond_seg_ref_channel = False
+
+    # parameter # 5
+    min_distance_min = 3
+    min_distance_max = 10
+    if isinstance(segmentation['min_distance'], int) and segmentation['min_distance'] >= min_distance_min and segmentation['min_distance'] <= min_distance_max:
+        cond_seg_min_distance = True
+    else:
+        print(f'\n min_distance is not valid.\n min_distance is integer in range [{min_distance_min}, ... ,{min_distance_max}].\n')
+        cond_seg_min_distance = False
+
+    # parameter # 6
+    # REF: https://docs.opencv.org/4.2.0/d4/d86/group__imgproc__filter.html#gaabe8c836e97159a9193fb0b11ac52cf1
+    gb_ksize_min = 0
+    gb_ksize_max = 10
+    if isinstance(segmentation['gb_ksize'], int) and segmentation['gb_ksize'] >= gb_ksize_min and segmentation['gb_ksize'] <= gb_ksize_max:
+        cond_seg_gb_ksize = True
+    else:
+        print(f'\n gb_ksize is not valid.\n gb_ksize is 0 or positive-odd integer in range [{gb_ksize_min}, ... ,{gb_ksize_max}].\n')
+        cond_seg_gb_ksize = False
+
+    # parameter # 7
+    # REF: (see above)
+    gb_sigma_min = 0
+    gb_sigma_max = 10
+    if segmentation['gb_sigma'] > gb_sigma_min and segmentation['gb_sigma'] < gb_sigma_max:
+        cond_seg_gb_sigma = True
+    else:
+        print(f'\n gb_sigma is not valid.\n gb_sigma (float or integer) is in range ({gb_sigma_min}, ... ,{gb_sigma_max}).\n')
+        cond_seg_gb_sigma = False
+
+    # parameter # 8
+    # blockSize - Size of a pixel neighborhood that is used to calculate a threshold value for the pixel: 3, 5, 7, and so on.
+    adapThresh_blockSize_min = 3
+    adapThresh_blockSize_max = 100
+    if isinstance(segmentation['adapThresh_blockSize'], int) and segmentation['adapThresh_blockSize'] >= adapThresh_blockSize_min and (segmentation['adapThresh_blockSize'] % 2) != 0 and segmentation['adapThresh_blockSize'] < adapThresh_blockSize_max :
+        cond_seg_adapThresh_blockSize = True
+    else:
+        print(f'\n adapThresh_blockSize is not valid.\n adapThresh_blockSize is odd-positive integer and in range of [{adapThresh_blockSize_min} ,..., {adapThresh_blockSize_max}) (e.g, 3, 5, 7, and so on..)\n')
+        cond_seg_adapThresh_blockSize = False
+
+    # parameter # 9
+    # C - Constant subtracted from the mean or weighted mean (see the details below). Normally, it is positive but may be zero or negative as well.
+    cond_seg_adapThresh_constant_max = 0.0
+    cond_seg_adapThresh_constant_min = -10.0
+    if segmentation['adapThresh_constant'] <= cond_seg_adapThresh_constant_max and segmentation['adapThresh_constant'] > cond_seg_adapThresh_constant_min:
+        cond_seg_adapThresh_constant = True
+    else:
+        print(f'\n adapThresh_constant is not valid.\n adapThresh_constant is a float-negative and in range of [{cond_seg_adapThresh_constant_min} ,..., {cond_seg_adapThresh_constant_max}].\n')
+        cond_seg_adapThresh_constant = False
+
+    # parameter #10
+    normalized_factor_min = 0
+    normalized_factor_max = 50
+    if isinstance(segmentation['normalized_factor'], int) and segmentation['normalized_factor'] >= normalized_factor_min and segmentation['normalized_factor'] <= normalized_factor_max:
+        cond_seg_normalized_factor = True
+    else:
+        print(f'\n normalized_factor is not valid.\n normalized_factor is positive integer and in range of [{normalized_factor_min} ,..., {normalized_factor_max}]\n')
+        cond_seg_normalized_factor = False
+
+    # parameter #11
+    cond_aic_apply_intensity_correction = isinstance(segmentation['aic_apply_intensity_correction'], bool)
+    if not cond_aic_apply_intensity_correction:
+        print(f'\n aic_apply_intensity_correction is not valid. It should be a boolean variable e.g., \'False\' or \'True\'.\n')
+
+    # parameter #12
+    aic_sigma_min = 1
+    aic_sigma_max = 20
+    if isinstance(segmentation['aic_sigma'], int) or isinstance(segmentation['aic_sigma'], int) and segmentation['aic_sigma'] >= aic_sigma_min and segmentation['aic_sigma'] <= aic_sigma_max:
+        cond_seg_aic_sigma = True
+    else:
+        print(f'\n aic_sigma is not valid.\n aic_sigma is positive integer or float and in range of [{aic_sigma_min} ,..., {aic_sigma_max}]\n')
+        cond_seg_aic_sigma = False
+
+    if (cond_n_buff and
+            cond_img_path and
+            cond_perform_full_analysis and
+            cond_seg_ref_channel and
+            cond_seg_min_distance and
+            cond_seg_gb_ksize and
+            cond_seg_gb_sigma and
+            cond_seg_adapThresh_blockSize and
+            cond_seg_adapThresh_constant and
+            cond_seg_normalized_factor and
+            cond_aic_apply_intensity_correction and
+            cond_seg_aic_sigma):
+        return True
+    else:
+        print(f'\n * Program exit. Problem with input parameters! Please check the input parameters and try again * \n')
+        sys.exit()
 
 
 def get_cnt_mask(cluster_index, sp_arr, labels_shape):
@@ -125,7 +261,7 @@ def get_feature_table(n_valid_cnt=0):
     ]
 
     # intensity parameters: There are 'ch' number of channels for each image
-    ch = 40  # for the time being, set it to 40. Alternatively, we can read it from the number of available channels in the input data cube
+    ch = 50  # for the time being, set it to 40. Alternatively, we can read it from the number of available channels in the input data cube
     flux = np.zeros((ch, n_valid_cnt), dtype=np.float32)
     f_buffer = np.zeros((ch, n_valid_cnt), dtype=np.float32)
 
@@ -183,6 +319,16 @@ def get_feature_table(n_valid_cnt=0):
             flux[37],
             flux[38],
             flux[39],
+            flux[40],
+            flux[41],
+            flux[42],
+            flux[43],
+            flux[44],
+            flux[45],
+            flux[46],
+            flux[47],
+            flux[48],
+            flux[49],
             f_buffer[0],
             f_buffer[1],
             f_buffer[2],
@@ -223,6 +369,16 @@ def get_feature_table(n_valid_cnt=0):
             f_buffer[37],
             f_buffer[38],
             f_buffer[39],
+            f_buffer[40],
+            f_buffer[41],
+            f_buffer[42],
+            f_buffer[43],
+            f_buffer[44],
+            f_buffer[45],
+            f_buffer[46],
+            f_buffer[47],
+            f_buffer[48],
+            f_buffer[49],
         ],
         names=(
             'X',
@@ -276,6 +432,16 @@ def get_feature_table(n_valid_cnt=0):
             'flux_38',
             'flux_39',
             'flux_40',
+            'flux_41',
+            'flux_42',
+            'flux_43',
+            'flux_44',
+            'flux_45',
+            'flux_46',
+            'flux_47',
+            'flux_48',
+            'flux_49',
+            'flux_50',
             'f_buffer_01',
             'f_buffer_02',
             'f_buffer_03',
@@ -316,6 +482,16 @@ def get_feature_table(n_valid_cnt=0):
             'f_buffer_38',
             'f_buffer_39',
             'f_buffer_40',
+            'f_buffer_41',
+            'f_buffer_42',
+            'f_buffer_43',
+            'f_buffer_44',
+            'f_buffer_45',
+            'f_buffer_46',
+            'f_buffer_47',
+            'f_buffer_48',
+            'f_buffer_49',
+            'f_buffer_50',
         ),
     )
 
@@ -323,7 +499,7 @@ def get_feature_table(n_valid_cnt=0):
 
 
 def extract_features_and_update_catalog(
-    img_16bit, cnt, t_final, n_cell, minCntLength, imgW, imgH, all_frames, n_buff
+    img_16bit, cnt, t_final, n_cell, minCntLength, imgW, imgH, all_frames, n_buff, out_mask_each_cell, perform_full_analysis, ref_frame_8bit_flat_normalized_copy
 ):
     """The function, extracts information for each segmented cell and record it in the table already defined. Each piece of information extracted for the same cell, would be assigned to a feature column in the input table. Each row in the table is associated with one cell. Therefore the input table which originally is empty, would be populated with individual cell's information. The function returns as a final output, the number of cells detected.
 
@@ -383,6 +559,7 @@ def extract_features_and_update_catalog(
                 and (xc + wRect + n_buff) < imgW
                 and (yc + hRect + n_buff) < imgH
             ):
+
                 # Positional
                 # ----------
 
@@ -390,56 +567,67 @@ def extract_features_and_update_catalog(
                 t_final['X_image'][n_cell] = xc
                 t_final['Y_image'][
                     n_cell
-                ] = yc  # imgH - yc # Useful for TOPCAT otherwise 'yc' only
+                ] = yc
 
                 t_final['X'][n_cell] = xc
-                t_final['Y'][n_cell] = imgH - yc
+                t_final['Y'][n_cell] = imgH - yc  # imgH - yc # Useful for TOPCAT otherwise 'yc' only
 
-                # Morphological
-                # -------------
+                cv2.drawContours(ref_frame_8bit_flat_normalized_copy, [cnt], 0, (0, 255, 0), 1)
 
-                # area related
-                t_final['area_cnt'][n_cell] = c.area
-                t_final['area_minCircle'][n_cell] = c.mincircle_area
-                t_final['area_ellipse'][n_cell] = c.area_ellipse
+                # perform this part (extraction of intensities in all channels + shape analysis) if
+                # the user request for full analysis by setting the input parameter 'perform_full_analysis'
+                # to TRUE in the YAML file. If 'perform_full_analysis' == FALSE, thsi part will be skipped.
+                if perform_full_analysis:
 
-                # fitted ellipse
-                t_final['ell_angle'][n_cell] = c.rotation_angle
-                t_final['ell_smaj'][n_cell] = c.majoraxis_length
-                t_final['ell_smin'][n_cell] = c.minoraxis_length
-                t_final['ell_e'][n_cell] = c.eccentricity
+                    # Morphological
+                    # -------------
+                    # area related
+                    t_final['area_cnt'][n_cell] = c.area
+                    t_final['area_minCircle'][n_cell] = c.mincircle_area
+                    t_final['area_ellipse'][n_cell] = c.area_ellipse
 
-                # flux related
-                # ------------
-                # xRect , yRect , wRect , hRect = cv2.boundingRect(cnt)
+                    # fitted ellipse
+                    t_final['ell_angle'][n_cell] = c.rotation_angle
+                    t_final['ell_smaj'][n_cell] = c.majoraxis_length
+                    t_final['ell_smin'][n_cell] = c.minoraxis_length
+                    t_final['ell_e'][n_cell] = c.eccentricity
 
-                # First mask individual cells (segmented object)
-                kernel = np.ones((3, 3), np.uint8)
-                mask_fast = np.zeros(
-                    (hRect + 2 * n_buff, wRect + 2 * n_buff), dtype=np.uint8
-                )
-                cv2.drawContours(
-                    mask_fast,
-                    [np.subtract(cnt, (xRect - n_buff, yRect - n_buff))],
-                    minPixVal,
-                    maxPixVal,
-                    thickness=-1,
-                )
-                mask_fast_dilation = cv2.dilate(mask_fast, kernel, iterations=n_buff)
-                mask_buff = cv2.subtract(mask_fast_dilation, mask_fast)
+                    # flux related
+                    # ------------
+                    # xRect , yRect , wRect , hRect = cv2.boundingRect(cnt)
 
-                # extract flux from all available channels
-                for ch_index in range(len(all_frames)):
-                    crop_src = all_frames[ch_index][
-                        (yRect - n_buff) : (yRect + hRect + n_buff),
-                        (xRect - n_buff) : (xRect + wRect + n_buff),
-                    ]
-                    t_final[flux_feature_columns[ch_index]][n_cell] = cv2.mean(
-                        crop_src, mask=mask_fast
-                    )[0]
-                    t_final[buff_feature_columns[ch_index]][n_cell] = cv2.mean(
-                        crop_src, mask=mask_buff
-                    )[0]
+                    # First mask individual cells (segmented object)
+                    kernel = np.ones((3, 3), np.uint8)
+                    mask_fast = np.zeros(
+                        (hRect + 2 * n_buff, wRect + 2 * n_buff), dtype=np.uint8
+                    )
+                    cv2.drawContours(
+                        mask_fast,
+                        [np.subtract(cnt, (xRect - n_buff, yRect - n_buff))],
+                        minPixVal,
+                        maxPixVal,
+                        thickness=-1,
+                    )
+
+                    # output individual image mask
+                    cv2.imwrite(f'{out_mask_each_cell}/cell_number_{n_cell}.tif', mask_fast)
+
+                    mask_fast_dilation = cv2.dilate(mask_fast, kernel, iterations=n_buff)
+                    mask_buff = cv2.subtract(mask_fast_dilation, mask_fast)
+
+                    # extract flux from all available channels
+                    for ch_index in range(len(all_frames)):
+                        crop_src = all_frames[ch_index][
+                            (yRect - n_buff) : (yRect + hRect + n_buff),
+                            (xRect - n_buff) : (xRect + wRect + n_buff),
+                        ]
+                        t_final[flux_feature_columns[ch_index]][n_cell] = cv2.mean(
+                            crop_src, mask=mask_fast
+                        )[0]
+                        t_final[buff_feature_columns[ch_index]][n_cell] = cv2.mean(
+                            crop_src, mask=mask_buff
+                        )[0]
+
                 n_cell += 1
 
     return n_cell
@@ -546,7 +734,7 @@ def apply_wShed_and_get_cluster_labels(
 
 
 # preparing the final output catalog
-def create_t_final(labels, img_16bit, all_frames, n_buff):
+def create_t_final(labels, img_16bit, all_frames, n_buff, out_mask_each_cell, perform_full_analysis, ref_frame_8bit_flat_normalized_copy):
     """Creating the final output catalogue
 
     Parameters
@@ -608,6 +796,9 @@ def create_t_final(labels, img_16bit, all_frames, n_buff):
             imgH,
             all_frames,
             n_buff,
+            out_mask_each_cell,
+            perform_full_analysis,
+            ref_frame_8bit_flat_normalized_copy,
         )
 
     return t_final
@@ -627,8 +818,8 @@ def create_mask_image(labels):
         [description]
     """
 
-    # convert from int32 to uint16
-    mask = labels.astype(np.uint16)
+    # convert from int32 to uint32
+    mask = labels.astype(np.uint32)
 
     # construct an image
     im = Image.fromarray(mask)
@@ -785,7 +976,7 @@ def process_image(img_file, n_buff, segmentation, outputPath):
     """
     # read 16-bit data cube
     # img_cube = Image.open(img_file)
-    img_name = img_file.name.replace('.tif', '')
+    img_name = img_file.name.replace('.tiff', '')
 
     all_frames = get_frames(img_file)
 
@@ -796,11 +987,16 @@ def process_image(img_file, n_buff, segmentation, outputPath):
     ref_channel = segmentation.pop('ref_channel')
     ref_frame = all_frames[ref_channel - 1]
     ref_frame_8bit = normalize_channel(ref_frame, normalized_factor)
+    perform_full_analysis = segmentation['perform_full_analysis']
 
     # create pseudo_flat_field_corrected ocv_8-bit image from ocv_16-bit image
     ref_frame_8bit_flat_normalized = get_pseudo_opecv_8bit_flat_image(
         ref_frame, normalized_factor, aic_apply_intensity_correction, aic_sigma
     )
+
+    out = outputPath
+    out.mkdir(exist_ok=True)
+
     out = outputPath / 'reference'
     out.mkdir(exist_ok=True)
     cv2.imwrite(f'{out}/flat_{img_name}.tif', ref_frame_8bit_flat_normalized)
@@ -829,7 +1025,21 @@ def process_image(img_file, n_buff, segmentation, outputPath):
     out.mkdir(exist_ok=True)
     mask_img.save(f'{out}/{img_name}_mask.tif')
 
-    t_final = create_t_final(labels, ref_frame, all_frames, n_buff)
+    out_mask_each_cell = outputPath / 'mask_each_cell'
+    out_mask_each_cell.mkdir(exist_ok=True)
+
+    # An image where contour lines are overlaid on detected cells (visualization purpose only)
+    ref_frame_8bit_flat_normalized_copy = ref_frame_8bit_flat_normalized.copy()
+    ref_frame_8bit_flat_normalized_copy = cv2.cvtColor(ref_frame_8bit_flat_normalized_copy, cv2.COLOR_GRAY2BGR)
+
+    t_final = create_t_final(labels,
+                             ref_frame,
+                             all_frames,
+                             n_buff,
+                             out_mask_each_cell,
+                             perform_full_analysis,
+                             ref_frame_8bit_flat_normalized_copy
+                             )
 
     log.info('Writing output table and masked image')
 
@@ -838,6 +1048,7 @@ def process_image(img_file, n_buff, segmentation, outputPath):
     out = outputPath / 'catalogue'
     out.mkdir(exist_ok=True)
     t_final.write(f'{out}/{img_name}.fits', overwrite=True)
+    t_final.write(f'{out}/{img_name}.csv', overwrite=True)
     # ------------------------------
     # draft image: create a draft image and overlay detected objectes (visualisation only)
     draft_ref_frame_8bit_flat_normalized = create_draft_RGB_image_for_visualization(
@@ -846,7 +1057,16 @@ def process_image(img_file, n_buff, segmentation, outputPath):
     # draft image: write on disk
     out = outputPath / 'reference'
     out.mkdir(exist_ok=True)
+
+    # If Quick-Mode, put a stamp on draft images
+    if not perform_full_analysis:
+
+        stamp_image(ref_frame_8bit_flat_normalized_copy, t_final)
+        stamp_image(draft_ref_frame_8bit_flat_normalized, t_final)
+
+    cv2.imwrite(f'{out}/draft_cnt_{img_name}.tif', ref_frame_8bit_flat_normalized_copy)
     cv2.imwrite(f'{out}/draft_{img_name}.tif', draft_ref_frame_8bit_flat_normalized)
+
     # -----------------------------------------------------------------------------
     # cv2.imwrite('./test_mask.jpg', masked_image)
     return f'{out}/{img_name}.fits'
@@ -854,7 +1074,6 @@ def process_image(img_file, n_buff, segmentation, outputPath):
 
 def map_uint16_to_uint8_skimage(img_16bit):
     """Converting 16-bit single channel image to 8-bit single channel image.
-
     Parameters
     ----------
     img_16bit : [numpy array]
@@ -865,7 +1084,6 @@ def map_uint16_to_uint8_skimage(img_16bit):
     [numpy array]
         Single channel 8-bit image
     """
-
     # Converting the input 16-bit image to uint8 dtype (using Scikit-Image)
 
     # reference:
@@ -879,6 +1097,33 @@ def map_uint16_to_uint8_skimage(img_16bit):
         warnings.simplefilter('ignore')
         img_8bit = img_as_ubyte(img_16bit)
     return img_8bit
+
+
+def stamp_image(img, t_final):
+
+    # legend properties
+    REC_top_left = (100, 100)
+    REC_w_h = (1000, 350)
+    REC_color_in = (0, 0, 0)
+    REC_color_out = (0, 255, 0)
+
+    TXT1_loc = (175, 210)
+    TXT1_color = (255, 255, 255)
+    TXT1_size = 3.0
+    TXT1_thickness = 4
+    TXT1 = 'Quick View Mode'
+
+    TXT2_loc = (175, 290)
+    TXT2_color = (255, 255, 255)
+    TXT2_size = 1.5
+    TXT2_thickness = 2
+    TXT2 = 'Number of detections: ' + str(len(t_final))
+
+    img = cv2.rectangle(img, REC_top_left, REC_w_h, REC_color_in, -1)
+    img = cv2.rectangle(img, REC_top_left, REC_w_h, REC_color_out, 1)
+    img = cv2.putText(img, TXT1, TXT1_loc, cv2.FONT_HERSHEY_SIMPLEX, TXT1_size, TXT1_color, TXT1_thickness)
+    img = cv2.putText(img, TXT2, TXT2_loc, cv2.FONT_HERSHEY_SIMPLEX, TXT2_size, TXT2_color, TXT2_thickness)
+    return img
 
 
 def create_draft_RGB_image_for_visualization(imgOpencv_8bit, t_final):
@@ -901,12 +1146,13 @@ def create_draft_RGB_image_for_visualization(imgOpencv_8bit, t_final):
 
     imgOpencv_8bit_copy = imgOpencv_8bit.copy()
     imgOpencv_8bit_copy = cv2.cvtColor(imgOpencv_8bit_copy, cv2.COLOR_GRAY2BGR)
-    imgOpencv_8bit_copy = cv2.applyColorMap(imgOpencv_8bit_copy, cv2.COLORMAP_JET)
-    imgOpencv_8bit_copy = cv2.GaussianBlur(imgOpencv_8bit_copy, (3, 3), 0)
+    # imgOpencv_8bit_copy = cv2.applyColorMap(imgOpencv_8bit_copy, cv2.COLORMAP_JET)
+    # imgOpencv_8bit_copy = cv2.GaussianBlur(imgOpencv_8bit_copy, (3, 3), 0)
     # imgOpencv_8bit_copy = cv2.GaussianBlur(imgOpencv_8bit_copy,(0,0),sigmaX = 0.5, sigmaY = 0.5)
 
     # (ii) overlay position of detected object on this image
     for rows in t_final:
-        cv2.circle(imgOpencv_8bit_copy, (int(rows['X_image']), int(rows['Y_image'])), 1, (0, 0, 255), -1)
+        cv2.circle(imgOpencv_8bit_copy, (int(rows['X_image']), int(rows['Y_image'])), 2, (0, 0, 255), -1)
+        cv2.circle(imgOpencv_8bit_copy, (int(rows['X_image']), int(rows['Y_image'])), 1, (0, 255, 255), -1)
 
     return imgOpencv_8bit_copy

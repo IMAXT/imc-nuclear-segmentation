@@ -3,23 +3,34 @@ version: 1
 name: imc
 extra_pip_packages: imc-pipeline
 
-img_path: /home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/DATA02__3D_stpt_IMC_DataPackager/DATA02__3D_stpt_IMC_DataPackager
-output_path: /home/darius01/myDisk1/myProjects/medical/imaxt/imc/test_output
+# TEST OK
+#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-normal-ref32'
+
+
+#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-single-ome-small-ref25'
+#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-multi-ome-small-ref25'
+
+#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-single-ome-large-ref43'
+input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-multi-ome-large-ref43'
+
+output_path: /home/darius01/myDisk1/myProjects/medical/imaxt/imc/OUTPUT
 
 # flux-estimation (mean pixel intensities) related parameters
 n_buff: 1
 
 # segmentation-related parameters
 segmentation:
-  ref_channel: 25 # nuclear channel to be used for segmentation
+  perform_full_analysis: True # if False, only a draft image is produced with detected cells overlaid on the reference (nuclear) channel
+  ref_channel: 43 # nuclear channel to be used for segmentation
   min_distance: 3 # watershed segmentation
   gb_ksize: 0 # gaussian blur kernel size (for denoising)
   gb_sigma: 2.0 # gaussian blur sigma (for denoising)
-  adapThresh_blockSize: 15 # kernel size for background removal
-  adapThresh_constant: -7.5 # pixel intensity constant for background removal
+  adapThresh_blockSize: 25 # kernel size for background removal
+  adapThresh_constant: -6.5 # pixel intensity constant for background removal
   normalized_factor: 10
   aic_apply_intensity_correction: False
   aic_sigma: 5
 
 resources:
-  workers: 6
+  workers: 4
+  memory: 20
