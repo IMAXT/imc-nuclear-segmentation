@@ -4,14 +4,14 @@ name: imc
 extra_pip_packages: imc-pipeline
 
 # TEST OK
-#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-normal-ref32'
+input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-normal-ref32'
 
 
 #input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-single-ome-small-ref25'
 #input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-multi-ome-small-ref25'
 
 #input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-single-ome-large-ref43'
-input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-multi-ome-large-ref43'
+#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-multi-ome-large-ref43'
 
 output_path: /home/darius01/myDisk1/myProjects/medical/imaxt/imc/OUTPUT
 
@@ -20,8 +20,8 @@ n_buff: 1
 
 # segmentation-related parameters
 segmentation:
-  perform_full_analysis: True # if False, only a draft image is produced with detected cells overlaid on the reference (nuclear) channel
-  ref_channel: 43 # nuclear channel to be used for segmentation
+  perform_full_analysis: False # if False, only a draft image is produced with detected cells overlaid on the reference (nuclear) channel
+  ref_channel: 32 # nuclear channel to be used for segmentation
   min_distance: 3 # watershed segmentation
   gb_ksize: 0 # gaussian blur kernel size (for denoising)
   gb_sigma: 2.0 # gaussian blur sigma (for denoising)
