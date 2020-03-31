@@ -37,7 +37,7 @@ def getKey(dct, value):
     return [key for key in dct if (dct[key] == value)][0]
 
 
-def preprocess(input_path, output_path):
+def preprocess(input_path, output_path):  # noqa: C901  -- TEMPORARY
     '''
     The function reads input image path 'img_path' and analyze its contents in order to check if it contains
        (a) Normal-TIFF files (where each file is an IMC channel belongs to the same IMC run), OR

@@ -40,8 +40,6 @@ def main(
     """
     # TODO: Complete the docstring
 
-    imcutil.validate_input_params(n_buff, input_path, output_path, segmentation)
-
     client = Client.current()
 
     log.info('Starting IMC pipeline.')
@@ -51,7 +49,7 @@ def main(
     #     raise FileNotFoundError(img_path)
     #
     # output_path = Path(output_path)
-    # output_path.mkdir(parents=True, exist_ok=True)
+    output_path.mkdir(parents=True, exist_ok=True)
 
     # img_list = preprocess(img_path, output_path / 'cubes')
     img_list, img_path = preprocess(input_path, output_path)
