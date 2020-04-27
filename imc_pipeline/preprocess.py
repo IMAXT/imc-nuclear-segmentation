@@ -1,55 +1,182 @@
 import logging
-from pathlib import Path
 from typing import List
 
-import numpy as np
-
+from pathlib import Path
 from imaxt_image.external import tifffile as tf
-from imaxt_image.image import TiffImage
-
-log = logging.getLogger('owl.daemon.pipeline')
+from imaxt_image.io import TiffImage
 
 
-def preprocess(input_dir: Path, output_dir: Path) -> List[Path]:
-    """ Converts OME.TIFF images (associated with individual IMC channels of the same slice) into a single cube TIFF image: The IMC pipeline reads image cubes i.e. a single TIFF image file, containing all IMC image channels for the same slice. If the format of the input image is OME.TIFF (which is the data packager format), then this function convert that format into cube TIFF format and returns a list of the name/location of converted images.
+log = logging.getLogger("owl.daemon.pipeline")
+
+
+TIFF_SUFFIX = ["tif", "tiff"]
+
+
+def find_image_extension(dir: Path) -> str:
+    """Loop through a directory and return the suffix of the first file match.
 
     Parameters
     ----------
-    input_dir
-        Input directory containing OME.TIFF images
-    output_dir
-        Directory where TIFF cubes are written
+    dir
+        directory path
+    suffixes
+        list of suffixes to search for
 
     Returns
     -------
-    list of filenames (one per image cube)
+    suffix of first file that matches
     """
-    if not output_dir.exists():
-        output_dir.mkdir()
+    for suffix in TIFF_SUFFIX:
+        n_files = list(dir.glob(f"*.{suffix}"))
+        if n_files:
+            return suffix
 
-    filelist = []
-    # TODO: This can be run in parallel for each slice
-    for slide in input_dir.glob('*'):
-        if not slide.is_dir():
-            continue
-        for cube in slide.glob('Q???'):
-            output = output_dir / f'{slide.name}-{cube.name}.tif'
-            if output.exists():
-                log.debug('%s already exists', output)
-                filelist.append(output)
-                continue
 
-            imgs = [TiffImage(im).asarray() for im in sorted(cube.glob('*.tif'))]
-            imgs = np.stack(imgs).astype('uint16')
-            imgs[imgs == np.inf] = 0
+def check_ometif(input_path: Path) -> List:
+    """
+    """
+    # see if ome-tif unique keys exists among subfolders (and if they are repeated)
+    found_roi_unique_keys = [*input_path.glob("Q???")]
 
-            try:
-                out = tf.TiffWriter(output)
-                out.save(imgs)
-                log.info('%s saved', output)
-                filelist.append(output)
-            except Exception:
-                log.critical('Cannot save file %s', output)
-                if output.exists():
-                    output.unlink()
-    return filelist
+    # if ome-tif subfolder does not exist, check if TIF images are within current folder
+    if not found_roi_unique_keys:
+        # check if image files are TIF or TIFF
+        suffix = find_image_extension(input_path)
+        if not suffix:
+            raise FileNotFoundError(
+                "The input path does not have any tif image files. Please check the input path again"
+            )
+        data_is_ometif = False
+    else:
+        md5_files = [*input_path.rglob("*.md5")]
+        tif_files = [*input_path.rglob("*.ome.tif")]
+        if not tif_files:
+            raise FileNotFoundError(
+                "Incorrect OME.TIF directory: no tiff files present in '%s'", input_path
+            )
+        elif not md5_files:
+            raise FileNotFoundError(
+                "Incorrect OME.TIF directory: no md5 files present in '%s'", input_path
+            )
+        elif len(md5_files) != len(tif_files):
+            raise Exception("Incorrect number of tif and md5 files in '%s'", input_path)
+
+        suffix = "tif"
+        data_is_ometif = True
+
+    return data_is_ometif, suffix
+
+
+def create_cube_normal(
+    input_path: Path, output_path: Path, tif_ext: str = "tif", compress: int = 0
+) -> List:
+    image_files = sorted(input_path.glob(f"*.{tif_ext}"))
+    channel_names = [filename.name.split(".")[0] for filename in image_files]
+
+    cube_path = output_path / input_path.name / "CUBE_image"
+    cube_path.mkdir(parents=True, exist_ok=True)
+
+    cube_fullname = cube_path / f"{input_path.name}_CUBE.tif"
+    cube_txt = output_path / input_path.name / "CUBE.txt"
+
+    if not cube_fullname.exists():
+        # keep record of channel names (= input tif filenames)
+        with tf.TiffWriter(cube_fullname, bigtiff=True) as tif:
+            with open(cube_txt, "w") as fh:
+                # loop through tif files
+                for indx, frame in enumerate(image_files):
+
+                    # read individual 16-bit tif image
+                    img = tf.imread(f"{frame}").astype("uint16")
+                    metadata = {f"{channel_names[indx]}": indx + 1}
+
+                    # write channel names on an output file
+                    fh.write(f"{indx+1},{channel_names[indx]}\n")
+
+                    tif.save(
+                        img, compress=compress, metadata=metadata,
+                    )
+    else:
+        log.info("CUBE data file already exists '%s'", cube_fullname)
+
+    return [cube_fullname], [output_path]
+
+
+def create_cube_ome(
+    input_path: Path, output_path: Path, tif_ext: str = "tif", compress: int = 0
+) -> List:
+    img_list = []
+    img_path = []
+    for roi in input_path.glob("Q???"):
+        log.debug(f"Processing {roi}")
+        image_files = sorted(roi.glob(f"*.{tif_ext}"))
+
+        cube_path = output_path / input_path.name / roi.name / "CUBE_image"
+        cube_path.mkdir(parents=True, exist_ok=True)
+
+        cube_fullname = cube_path / f"{input_path.name}_CUBE.tif"
+        cube_txt = output_path / input_path.name / roi.name / "CUBE.txt"
+
+        # add Path object (version) of image name and its path
+        img_list.append(cube_fullname)
+        img_path.append(output_path / input_path.name / roi.name)
+
+        if not cube_fullname.exists():
+            with tf.TiffWriter(cube_fullname, bigtiff=True) as tif:
+                with open(cube_txt, "w") as fh:
+                    # loop through tif files
+                    for indx, frame in enumerate(image_files):
+
+                        # read individual 16-bit tif image
+                        img = TiffImage(frame)
+                        arr = img.asarray().astype("uint16")
+                        metadata = img.metadata.as_dict()
+                        ch_name = metadata["OME"]["Image"]["Pixels"]["Channel"][
+                            "@Fluor"
+                        ]
+
+                        # write channel names on an output file
+                        fh.write(f"{indx+1},{ch_name}\n")
+
+                        tif.save(
+                            arr, compress=compress, metadata=metadata,
+                        )
+    else:
+        log.info("CUBE data file already exists '%s'", cube_fullname)
+
+    return img_list, img_path
+
+
+def preprocess(input_path: Path, output_path: Path, compress=0) -> List[Path]:
+    """
+    The function reads input image path 'img_path' and analyze its contents in order to check if it contains
+       (a) Normal-TIFF files (where each file is an IMC channel belongs to the same IMC run), OR
+       (b) OME-TIFF file.
+       In case (a), it is always a single ROI IMC run.
+       In case (b), it could be a 'single' or 'multiple' IMC run.
+
+    Input:
+       input_path [str]: Path to the input folder associated to an IMC run
+       output_path [str]: Path to where output products will be stored.
+
+    Output:
+       img_list [Path object]: Path to image cube(s)
+       img_path [Path object]: Path to output folder(s).
+          - In case of Normal-TIFF, output folder path (img_path) is the same as inputted 'output_path'
+          - In case of OME-TIFF, output folder(s) are different and within sub-folders inside the inputted 'output_path'
+    """
+
+    if not isinstance(input_path, Path):
+        input_path = Path(input_path)
+
+    if not isinstance(output_path, Path):
+        output_path = Path(output_path)
+
+    data_is_ometif, tif_ext = check_ometif(input_path)
+
+    if not data_is_ometif:
+        img_list, img_path = create_cube_normal(input_path, output_path)
+    else:
+        img_list, img_path = create_cube_ome(input_path, output_path)
+
+    return img_list, img_path

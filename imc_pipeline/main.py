@@ -7,8 +7,7 @@ from distributed import Client, as_completed
 
 from imc_pipeline import imcutil
 
-# from .preprocess import preprocess
-from .preprocess_NEW import preprocess
+from .preprocess import preprocess
 
 log = logging.getLogger('owl.daemon.pipeline')
 
