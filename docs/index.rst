@@ -6,6 +6,7 @@ IMC Pipeline
 
    readme
    usage
+   outputs
    modules
    contributing
    authors
