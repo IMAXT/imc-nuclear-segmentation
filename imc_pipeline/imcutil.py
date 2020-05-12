@@ -11,7 +11,7 @@ from scipy.ndimage.filters import gaussian_filter
 from scipy.sparse import csr_matrix
 from skimage.feature import peak_local_max
 from skimage.morphology import watershed
-from imaxt_image.image import TiffImage
+from imaxt_image.io import TiffImage
 
 from .contour import Contour
 
