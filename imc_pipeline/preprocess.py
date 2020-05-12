@@ -148,22 +148,24 @@ def create_cube_ome(
 
 
 def preprocess(input_path: Path, output_path: Path, compress=0) -> List[Path]:
-    """
-    The function reads input image path 'img_path' and analyze its contents in order to check if it contains
-       (a) Normal-TIFF files (where each file is an IMC channel belongs to the same IMC run), OR
-       (b) OME-TIFF file.
-       In case (a), it is always a single ROI IMC run.
-       In case (b), it could be a 'single' or 'multiple' IMC run.
+    """Run preprocessing of input images.
 
-    Input:
-       input_path [str]: Path to the input folder associated to an IMC run
-       output_path [str]: Path to where output products will be stored.
+    The function reads input image path 'img_path' and analyze its contents in
+    order to check if it contains normal TIFF files (where each file is an IMC
+    channel belonging to the same IMC run) or a OME-TIF file. In the first case
+    it is always a single ROI IMC run. In the second case it can vbe a single or
+    multiple IMC run.
 
-    Output:
-       img_list [Path object]: Path to image cube(s)
-       img_path [Path object]: Path to output folder(s).
-          - In case of Normal-TIFF, output folder path (img_path) is the same as inputted 'output_path'
-          - In case of OME-TIFF, output folder(s) are different and within sub-folders inside the inputted 'output_path'
+    Parameters
+    ----------
+    input_path:
+       Path to the input folder associated to an IMC run
+    output_path:
+       Path to where output products will be stored.
+
+    Returns
+    -------
+    list contining list of images and output path
     """
 
     if not isinstance(input_path, Path):
