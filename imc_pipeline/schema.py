@@ -7,7 +7,7 @@ segmentation = vo.Schema(
         vo.Required('ref_channel'): vo.All(int, vo.Range(min=1)),
         vo.Optional('min_distance', default=3): vo.All(int, vo.Range(min=3, max=10)),
         vo.Optional('gb_ksize', default=0): vo.All(int, vo.Range(min=0, max=10)),
-        vo.Optional('gb_sigma', default=2): vo.All(int, vo.Range(min=0, max=10)),
+        vo.Optional('gb_sigma', default=2.0): vo.All(float, vo.Range(min=0, max=10)),
         vo.Optional('adapThresh_blockSize', default=15): vo.All(int, vo.Range(min=3, max=100)),
         vo.Optional('adapThresh_constant', default=-7.5): vo.All(float, vo.Range(min=-10, max=0)),
         vo.Optional('normalized_factor', default=30): vo.All(int, vo.Range(min=0, max=50)),
