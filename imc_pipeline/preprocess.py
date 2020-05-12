@@ -141,8 +141,8 @@ def create_cube_ome(
                         tif.save(
                             arr, compress=compress, metadata=metadata,
                         )
-    else:
-        log.info("CUBE data file already exists '%s'", cube_fullname)
+        else:
+            log.info("CUBE data file already exists '%s'", cube_fullname)
 
     return img_list, img_path
 
