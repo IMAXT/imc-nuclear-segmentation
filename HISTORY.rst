@@ -2,8 +2,8 @@
 History
 =======
 
-0.3.0 (2020-05-27)
------------------
+0.3.1 (2020-05-27)
+------------------
 
 * Raise error when pipeline fails.
 * Add an extra keyword to run the processing in draft mode.
