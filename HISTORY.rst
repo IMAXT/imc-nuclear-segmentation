@@ -2,6 +2,20 @@
 History
 =======
 
+0.3.0 (2020-05-27)
+-----------------
+
+* Raise error when pipeline fails.
+* Add an extra keyword to run the processing in draft mode.
+* Add support for big tiff files.
+* Add support for non ome-tif files with a directory structure
+  and file naming compatible with histocat.
+* Improve validation of configuration keywords.
+* The location of input data changes from `img_path` to
+  `input_path`.
+* IMC slides have now to be processed independently (i.e.
+  `input_path` is the location of one IMC slide.
+
 0.2.0 (2020-01-20)
 ------------------
 
