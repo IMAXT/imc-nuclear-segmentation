@@ -63,6 +63,5 @@ def main(
             log.error(fut.exception())
             tb = fut.traceback()
             log.error(traceback.format_tb(tb))
-            raise
 
     log.info('IMC pipeline finished.')
