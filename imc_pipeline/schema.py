@@ -5,9 +5,8 @@ from pathlib import Path
 def Odd():
     def f(val):
         if val % 2 == 0:
-            return vo.MultipleInvalid("must be odd number")
+            raise vo.MultipleInvalid("must be odd number")
         return val
-
     return f
 
 
