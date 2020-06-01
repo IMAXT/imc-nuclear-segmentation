@@ -2,9 +2,10 @@
 History
 =======
 
-0.3.1 (2020-05-27)
+0.3.2 (2020-06-01)
 ------------------
 
+* Bug fixes.
 * Raise error when pipeline fails.
 * Add an extra keyword to run the processing in draft mode.
 * Add support for big tiff files.
