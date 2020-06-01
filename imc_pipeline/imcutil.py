@@ -735,7 +735,7 @@ def normalize_channel(img, norm_factor):
     imgOpencv_16bit : [numpy array]
         Single channel IMC, 16-bit image
     normalized_factor : [int]
-        [10^{-2} percent; Recommended 10 to 50] During the
+        [10^{-2} percent; Recommended 1 to 50] During the
         processing, the IMC pipeline converts 16-bit images
         into 8-bit and recalculates the pixel values of the
         image so the range is equal to the maximum range for
@@ -751,8 +751,12 @@ def normalize_channel(img, norm_factor):
     [numpy array]
         Single channel IMC, normalised 8-bit channel
     """
-    img_norm = _normalize_minmax(img, 0, 2 ** 16)
-    img_8bit = _normalize_minmax(img_norm * norm_factor, 0, 255, dtype=np.uint8)
+
+    # make sure input image data type is 'uint16' (in case it is 'float32')
+    img = img.astype(np.uint16)
+
+    img_norm = _normalize_minmax(img, 0, (2 ** 16 - 1))
+    img_8bit = _normalize_minmax(img_norm * norm_factor, 0, (2 ** 8 - 1), dtype=np.uint8)
     return img_8bit
 
 

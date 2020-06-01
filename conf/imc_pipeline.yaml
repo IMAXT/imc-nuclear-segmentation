@@ -4,8 +4,8 @@ name: imc
 extra_pip_packages: imc-pipeline
 
 # TEST OK
-input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-normal-ref32'
-
+#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-normal-ref32'
+input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/Fatima_Qosaj_22MAY2020/data-05' # ref#36
 
 #input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-single-ome-small-ref25'
 #input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-multi-ome-small-ref25'
@@ -20,14 +20,14 @@ n_buff: 1
 
 # segmentation-related parameters
 segmentation:
-  perform_full_analysis: False # if False, only a draft image is produced with detected cells overlaid on the reference (nuclear) channel
-  ref_channel: 32 # nuclear channel to be used for segmentation
+  perform_full_analysis: True # if False, only a draft image is produced with detected cells overlaid on the reference (nuclear) channel
+  ref_channel: 36 # nuclear channel to be used for segmentation
   min_distance: 3 # watershed segmentation
   gb_ksize: 0 # gaussian blur kernel size (for denoising)
   gb_sigma: 2.0 # gaussian blur sigma (for denoising)
   adapThresh_blockSize: 25 # kernel size for background removal
   adapThresh_constant: -6.5 # pixel intensity constant for background removal
-  normalized_factor: 10
+  normalized_factor: 1 # normalization factor [1,..., 50]. A value of '1' means no change in image contrast. Larger values, increase image contrast.
   aic_apply_intensity_correction: False
   aic_sigma: 5
 
