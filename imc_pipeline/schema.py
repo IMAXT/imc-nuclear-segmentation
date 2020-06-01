@@ -4,9 +4,10 @@ from pathlib import Path
 
 def Odd():
     def f(val):
-        if val % 2 == 0:
-            raise vo.MultipleInvalid("must be odd number")
+        if (val > 0) and (val % 2) == 0:
+            raise vo.Invalid("must be odd number")
         return val
+
     return f
 
 
