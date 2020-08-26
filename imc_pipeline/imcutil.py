@@ -734,7 +734,7 @@ def normalize_channel(img, norm_factor):
     ----------
     imgOpencv_16bit : [numpy array]
         Single channel IMC, 16-bit image
-    normalized_factor : [int]
+    ain_image_normalization_factor : [int]
         [10^{-2} percent; Recommended 1 to 50] During the
         processing, the IMC pipeline converts 16-bit images
         into 8-bit and recalculates the pixel values of the
@@ -760,6 +760,81 @@ def normalize_channel(img, norm_factor):
     return img_8bit
 
 
+# Automatic brightness and contrast optimization with optional histogram clipping
+def automatic_brightness_and_contrast(image, clip_hist_percent=1):
+    """
+    Automatic brightness and contrast optimization with optional histogram clipping
+
+    Parameters
+    ----------
+    image: [numpy array]
+        Single channel 16-bit or 8-bit image array
+
+    Returns
+    -------
+    [numpy array]
+        Single channel / 8-bit / normalised (if necessary) version of the input image
+    """
+
+    # check if image *is not* 8-bit
+    if np.max(image) >= 2**8:
+
+        # make sure input image data type is 'uint16' (in case it is 'float32')
+        image = image.astype(np.uint16)
+
+        # convert image to 8-bit
+        image = _normalize_minmax(image, 0, (2**8 - 1), dtype=np.uint8)
+
+    # check if input image is single channel
+    if len(image.shape) > 2:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image
+
+    # Calculate grayscale histogram
+    hist = cv2.calcHist([gray], [0], None, [2**8], [0, 2**8])
+    hist_size = len(hist)
+
+    # Calculate cumulative distribution from the histogram
+    accumulator = []
+    accumulator.append(float(hist[0]))
+    for index in range(1, hist_size):
+        accumulator.append(accumulator[index - 1] + float(hist[index]))
+
+    # Locate points to clip
+    maximum = accumulator[-1]
+    clip_hist_percent *= (maximum / 100.0)
+    clip_hist_percent /= 2.0
+
+    # Locate left cut
+    minimum_gray = 0
+    while accumulator[minimum_gray] < clip_hist_percent:
+        minimum_gray += 1
+
+    # Locate right cut
+    maximum_gray = hist_size - 1
+    while accumulator[maximum_gray] >= (maximum - clip_hist_percent):
+        maximum_gray -= 1
+
+    # Calculate alpha and beta values
+    alpha = (2**8 - 1) / (maximum_gray - minimum_gray)
+    beta = -minimum_gray * alpha
+
+    '''
+    # Calculate new histogram with desired range and show histogram
+    new_hist = cv2.calcHist([gray],[0],None,[256],[minimum_gray,maximum_gray])
+    plt.plot(hist)
+    plt.plot(new_hist)
+    plt.xlim([0,256])
+    plt.show()
+    '''
+
+    auto_result = cv2.convertScaleAbs(gray, alpha=alpha, beta=beta)
+    # auto_result_gray = cv2.cvtColor(auto_result, cv2.COLOR_BGR2GRAY)
+
+    return (auto_result, alpha, beta)
+
+
 # find number of channels
 def get_frames(cube: Image) -> List[np.ndarray]:
     """Extract all channels in an Image data cube
@@ -779,7 +854,7 @@ def get_frames(cube: Image) -> List[np.ndarray]:
 
 
 def get_pseudo_opecv_8bit_flat_image(
-    imgOpencv_16bit, normalized_factor, aic_apply_intensity_correction, aic_sigma
+    imgOpencv_16bit, ain_automatic_image_normalization, ain_image_normalization_factor, aic_apply_intensity_correction, aic_sigma
 ):
     """The function correct for the observed pixel intensity inhomogeneity across the image
 
@@ -787,7 +862,7 @@ def get_pseudo_opecv_8bit_flat_image(
     ----------
     imgOpencv_16bit : [numpy array]
         Single channel 16-bit image
-    normalized_factor : [int]
+    ain_image_normalization_factor : [int]
         [10^{-2} percent; Recommended 10 to 50] During the processing,
         the IMC pipeline converts 16-bit images into 8-bit and recalculates
         the pixel values of the image so the range is equal to the maximum
@@ -804,9 +879,20 @@ def get_pseudo_opecv_8bit_flat_image(
         Intensity corrected, 16-bit single channel, image
     """
     if aic_apply_intensity_correction is False:
-        imgOpencv_8bit_flat_normalized = normalize_channel(
-            imgOpencv_16bit, normalized_factor
-        )
+
+        # if automatic normalization key is TRUE
+        if ain_automatic_image_normalization is True:
+
+            # Apply auto-normalization
+            imgOpencv_8bit_flat_normalized , _, _ = automatic_brightness_and_contrast(imgOpencv_16bit)
+
+        # if automatic normalization key is FALSE
+        else:
+
+            # Apply manual image normalization based on the normalization factor input parameter
+            imgOpencv_8bit_flat_normalized = normalize_channel(
+                imgOpencv_16bit, ain_image_normalization_factor
+            )
     else:
         # float means the array only e.g. float16 - So it is not an image
         # (which is uint8, uint16, or uint32)
@@ -830,7 +916,7 @@ def get_pseudo_opecv_8bit_flat_image(
         )
         imgOpencv_16bit_flat = imgOpencv_16bit_float_flat.astype(np.uint16)
         imgOpencv_8bit_flat_normalized = normalize_channel(
-            imgOpencv_16bit_flat, normalized_factor
+            imgOpencv_16bit_flat, ain_image_normalization_factor
         )
     return imgOpencv_8bit_flat_normalized
 
@@ -852,7 +938,7 @@ def process_image(img_file, n_buff, segmentation, outputPath):
     ref_channel : [int]
         This is the IMC channel to be used as a reference image for
         segmentation (the best nuclear channel)
-    normalized_factor : [int]
+    ain_image_normalization_factor : [int]
         [10^{-2} percent; Recommended 10 to 50] During the processing,
         the IMC pipeline converts 16-bit images into 8-bit and recalculates
         the pixel values of the image so the range is equal to the maximum
@@ -877,17 +963,26 @@ def process_image(img_file, n_buff, segmentation, outputPath):
     all_frames = get_frames(img_file)
 
     log.info("Processing %s, n_tot_channel: %s", img_file, len(all_frames))
-    normalized_factor = segmentation["normalized_factor"]
+    ain_automatic_image_normalization = segmentation["ain_automatic_image_normalization"]
+    ain_image_normalization_factor = segmentation["ain_image_normalization_factor"]
     aic_apply_intensity_correction = segmentation["aic_apply_intensity_correction"]
     aic_sigma = segmentation["aic_sigma"]
     ref_channel = segmentation.pop("ref_channel")
     ref_frame = all_frames[ref_channel - 1]
-    ref_frame_8bit = normalize_channel(ref_frame, normalized_factor)
+
+    # for visualisation only
+    # ------------------------------------------------------------------------------
+    if ain_automatic_image_normalization:
+        ref_frame_8bit, _ , _ = automatic_brightness_and_contrast(ref_frame)
+    else:
+        ref_frame_8bit = normalize_channel(ref_frame, ain_image_normalization_factor)
+    # -------------------------------------------------------------------------------
+
     perform_full_analysis = segmentation["perform_full_analysis"]
 
     # create pseudo_flat_field_corrected ocv_8-bit image from ocv_16-bit image
     ref_frame_8bit_flat_normalized = get_pseudo_opecv_8bit_flat_image(
-        ref_frame, normalized_factor, aic_apply_intensity_correction, aic_sigma
+        ref_frame, ain_automatic_image_normalization, ain_image_normalization_factor, aic_apply_intensity_correction, aic_sigma
     )
 
     out = outputPath

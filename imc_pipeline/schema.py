@@ -26,7 +26,8 @@ segmentation = vo.Schema(
         vo.Optional("adapThresh_constant", default=-7.5): vo.All(
             vo.Any(int, float), vo.Range(min=-10, max=0)
         ),
-        vo.Optional("normalized_factor", default=1): vo.All(
+        vo.Optional("ain_automatic_image_normalization", default=True): bool,
+        vo.Optional("ain_image_normalization_factor", default=1): vo.All(
             int, vo.Range(min=1, max=50)
         ),
         vo.Optional("aic_apply_intensity_correction", default=False): bool,
