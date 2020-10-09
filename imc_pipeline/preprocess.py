@@ -5,6 +5,9 @@ from pathlib import Path
 from imaxt_image.external import tifffile as tf
 from imaxt_image.io import TiffImage
 
+import numpy as np
+import xarray as xr
+import os
 
 log = logging.getLogger("owl.daemon.pipeline")
 
@@ -32,9 +35,226 @@ def find_image_extension(dir: Path) -> str:
             return suffix
 
 
+# zarr reader (new)
+def check_zarr(input_path: Path):
+
+    ZARR_SUFFIX = [".zarr", ".ZARR", ".Zarr"]
+
+    zarr_checklist = list()
+    data_is_zarr = False
+
+    # check if input path contains any of zarr keywords listed in ZARR_SUFFIX
+    for zarr_extension in ZARR_SUFFIX:
+        zarr_checklist.append(zarr_extension in str(input_path))
+
+    print(zarr_checklist)
+
+    if True in zarr_checklist:
+        data_is_zarr = True
+
+    return data_is_zarr
+
+
+def read_individual_zarr_xarray_as_a_list(input_path: Path, output_path: Path):
+
+    # clear screen
+    os.system('clear')
+
+    # on terminal display
+    print('\t\t ------------------------------------------------- ')
+    print('\t\t| STEP . 1: Reading ZARR file aqcuisitions (RoIs) |')
+    print('\t\t ------------------------------------------------- ')
+
+    # input zarr file name
+    # note: 'input_path' is a Python 3.7 Path object and has to be converted to string
+    zarr_file = str(input_path)
+
+    # reading Zarr file (all ROIs at once)
+    ds = xr.open_zarr(zarr_file)
+
+    # extract list of individual acquisition (ROI)
+    # e.g. q_ids = ['Q001' , 'Q002' , 'Q003' , ...]
+    q_ids = ds.attrs['meta'][0]['acquisitions']
+
+    # reading Zaar file (now as a list of individual ROIs)
+    # e.g. ds_q = [ data'Q001' , data'Q002' , data'Q003' , ...]
+    ds_q = list()
+    q_ids_validity = list()  # some of the q_ids are broken and therefore have a keyword 'invalid'
+    for q_id_index , q_id in enumerate(q_ids):
+        ds_q.append(
+            xr.open_zarr(zarr_file, group=q_id)
+        )
+        validity = ds_q[q_id_index].attrs['meta'][0]['q_data_source']
+        q_ids_validity.append(validity)
+
+    # only keep valid acquisitions
+    for index, key in enumerate(q_ids_validity):
+        if key == 'invalid':
+            q_ids_validity[index] = False
+        else:
+            q_ids_validity[index] = True
+
+    # filter out 'invalid' acquisitions
+    q_ids = [x for x, y in zip(q_ids, q_ids_validity) if y]
+    ds_q = [x for x, y in zip(ds_q, q_ids_validity) if y]
+
+    return q_ids, ds_q
+
+
+def create_zarr_output_folders(input_path: Path, output_path: Path, q_ids):
+
+    # on terminal display
+    print('\t\t ------------------------------------------------------------- ')
+    print('\t\t| STEP . 2: Creating ZARR output folders and assign filenames |')
+    print('\t\t ------------------------------------------------------------- ')
+
+    # extract zarr filename only from the zarr_file full path
+    zarr_file = str(input_path)
+    zarr_fileName = zarr_file.split("/")[-1]
+
+    # setting output forlder names
+    output_folderName = zarr_fileName.replace('.zarr', '')
+    output_folderName_Pathlist = list()
+
+    output_CUBEfileName = zarr_fileName.replace('.zarr', '') + '_CUBE.tif'
+    output_CUBEfileName_Pathlist = list()
+    # creating output folders for each acquisition (roi)
+    for each_roi in q_ids:
+        output_folder_Path = Path(output_path, output_folderName, each_roi, 'CUBE_image')
+        output_folderName_Pathlist.append(output_folder_Path)
+        output_folder_Path.mkdir(parents=True, exist_ok=True)
+        output_CUBEfileName_Pathlist.append(Path(output_folder_Path, output_CUBEfileName))
+
+    return output_CUBEfileName_Pathlist
+
+
+def create_master_zarr_data_cube_in_numpy_form(q_ids, ds_q):
+
+    # on terminal display
+    print('\t\t ----------------------------------------------------------- ')
+    print('\t\t| STEP . 3: Creating master CUBE image data as NUMPY arrays |')
+    print('\t\t ----------------------------------------------------------- ')
+
+    q_ids_dataCube_masterList = list()
+    q_ids_channelNameList = list()
+
+    for acq_idx in range(len(q_ids)):
+
+        print('\nProcessing:')
+        print('\nacq_idx:', acq_idx, '\tq_ids:', q_ids[acq_idx])
+
+        # list of channel names for a sepecific acquisition
+        q_ids_channelName = ds_q[acq_idx].attrs['meta'][0]['q_channels']
+        q_ids_channelNameList.append(q_ids_channelName)
+
+        # # save list of channels as a text file
+        # q_ids_channelNameList_fileName = str(Path(output_path, output_folderName, q_ids[acq_idx], 'CUBE.txt'))
+        # np.savetxt(q_ids_channelNameList_fileName, q_ids_channelNameList, delimiter="\n", fmt="%s")
+        # print('output path:\n', Path(output_path, output_folderName, q_ids[acq_idx], 'CUBE_image'))
+
+        q_ids_dataCube_list = list()
+        for ch in range(len(q_ids_channelName)):
+            ch_data = np.array(ds_q[acq_idx][q_ids[acq_idx]][ch])  # convert to numpy float32
+            ch_data = ch_data.astype(np.uint16)  # float32 -> uint-16bit
+            q_ids_dataCube_list.append(ch_data)
+
+        # Cast the list into a numpy array
+        q_ids_dataCube_array = np.array(q_ids_dataCube_list)  # uint16
+        q_ids_dataCube_array.shape
+
+        q_ids_dataCube_masterList.append(q_ids_dataCube_array)
+
+    # Convert two lists to a dictionary
+    # q_ids -> list of names of acquisitions
+    # q_ids_dataCube_masterList -> list of cube_arrays for each acquisition
+    # ----------------------------------------------------------------------
+
+    # Create a zip object from two lists
+    q_ids_zipbObj = zip(q_ids, q_ids_dataCube_masterList)
+
+    # Create a dictionary from zip object
+    q_ids_masterDict = dict(q_ids_zipbObj)
+
+    return q_ids_masterDict, q_ids_channelNameList
+
+
+def save_master_zarr_data_cube_as_big_tiff(q_ids_masterDict, q_ids_channelNameList, output_CUBEfileName_Pathlist):
+
+    # on terminal display
+    print('\t\t ---------------------------------------------------------------------- ')
+    print('\t\t| STEP . 4: Saving master CUBE image data as BIG TIFF data CUBE arrays |')
+    print('\t\t ---------------------------------------------------------------------- ')
+
+    q_ids = list(q_ids_masterDict.keys())
+
+    print('Saving ... \n')
+
+    for acq_idx in range(len(q_ids)):
+
+        print('\t -- Acquisition ID: ', q_ids[acq_idx])
+
+        # i/o: path + filename
+        # cube_filename = str( Path(output_path, output_folderName, q_ids[acq_idx], 'CUBE_image', output_CUBEfileName))
+        cube_filename = str(output_CUBEfileName_Pathlist[acq_idx])
+
+        # specific cube array
+        channel_cube_array = q_ids_masterDict[q_ids[acq_idx]]
+
+        # Saving Channel Names
+        # Also saving channel names for each acquisition inside acquisition folder
+        channel_names = q_ids_channelNameList[acq_idx]
+        channel_name_filename = 'CUBE.txt'
+        channel_name_filename = cube_filename.split('CUBE_image')[0] + channel_name_filename
+        np.savetxt(channel_name_filename, channel_names, delimiter="\n", fmt="%s")
+        print('\t --', channel_name_filename)
+
+        # write as big tif
+        with tf.TiffWriter(cube_filename, bigtiff=True) as tif:
+            for i in range(channel_cube_array.shape[0]):
+                tif.save(channel_cube_array[i], compress=0)
+        print('\t --', cube_filename, '\n')
+    pass
+
+
+# zarr reader (new)
+def create_cube_zarr(input_path: Path, output_path: Path):
+
+    print('\n ***************************************************************\n')
+    print(' ----> FUNC: create_cube_zarr(input_path: Path, output_path: Path): <----')
+    print('input_path\t', input_path)
+    print('output_path\t', output_path)
+
+    #  S T E P . 1 (read zarr file)
+    # reading ROIs (acquisitions ; q_ids) and their associated data (ds_q) as python list objects
+    q_ids, ds_q = read_individual_zarr_xarray_as_a_list(input_path, output_path)
+    print("\n | q_ids |", q_ids , 'Also see |ds_q| for information on zarr arrays associated with individual |q_ids|.')
+
+    #  S T E P . 2: Creating output folders and get a list of unique filenames (output path + full name) for each ROI (acquisition)
+    output_CUBEfileName_Pathlist = create_zarr_output_folders(input_path, output_path, q_ids)
+    print("\n Unique file-names for ", q_ids , " are : ", output_CUBEfileName_Pathlist)
+
+    #  S T E P . 3: Creating a master dictionary of ROIs aka acquisitions, and their corresponding CUBE image data as numpy arrays
+    q_ids_masterDict , q_ids_channelNameList = create_master_zarr_data_cube_in_numpy_form(q_ids, ds_q)
+
+    #  S T E P . 4: Saving master CUBE image data as BIG TIFF data CUBE arrays
+    save_master_zarr_data_cube_as_big_tiff(q_ids_masterDict, q_ids_channelNameList, output_CUBEfileName_Pathlist)
+
+    #  S T E P . 5: Return img_list & img_path
+    # list of full path to each CUBE image file created
+    img_list = output_CUBEfileName_Pathlist
+
+    # from 'img_list' (see above), I extract only the path to each acquisition (.../.../up_to_/Q00$)
+    # and append them to a list as Path objects
+    img_path = list()
+    for tiff_cube in img_list:
+        path_tiff_cube = str(tiff_cube).split('CUBE_image')[0]
+        img_path.append(Path(path_tiff_cube))
+
+    return img_list, img_path
+
+
 def check_ometif(input_path: Path) -> List:
-    """
-    """
+
     # see if ome-tif unique keys exists among subfolders (and if they are repeated)
     found_roi_unique_keys = [*input_path.glob("Q???")]
 
@@ -174,11 +394,20 @@ def preprocess(input_path: Path, output_path: Path, compress=0) -> List[Path]:
     if not isinstance(output_path, Path):
         output_path = Path(output_path)
 
-    data_is_ometif, tif_ext = check_ometif(input_path)
+    # first check to see if input data is of ZARR format
+    data_is_zarr = check_zarr(input_path)
 
-    if not data_is_ometif:
-        img_list, img_path = create_cube_normal(input_path, output_path)
+    # If ZARR format
+    if data_is_zarr:
+        img_list, img_path = create_cube_zarr(input_path, output_path)
+
+    # if *NOT* ZARR format: Check if it is OME or NORMAL format
     else:
-        img_list, img_path = create_cube_ome(input_path, output_path)
+        data_is_ometif, tif_ext = check_ometif(input_path)
+
+        if not data_is_ometif:
+            img_list, img_path = create_cube_normal(input_path, output_path)
+        else:
+            img_list, img_path = create_cube_ome(input_path, output_path)
 
     return img_list, img_path
