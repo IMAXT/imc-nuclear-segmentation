@@ -37,22 +37,7 @@ def find_image_extension(dir: Path) -> str:
 
 # zarr reader (new)
 def check_zarr(input_path: Path):
-
-    ZARR_SUFFIX = [".zarr", ".ZARR", ".Zarr"]
-
-    zarr_checklist = list()
-    data_is_zarr = False
-
-    # check if input path contains any of zarr keywords listed in ZARR_SUFFIX
-    for zarr_extension in ZARR_SUFFIX:
-        zarr_checklist.append(zarr_extension in str(input_path))
-
-    print(zarr_checklist)
-
-    if True in zarr_checklist:
-        data_is_zarr = True
-
-    return data_is_zarr
+    return (input_path / '.zgroup').exists()
 
 
 def read_individual_zarr_xarray_as_a_list(input_path: Path, output_path: Path):
