@@ -1,14 +1,11 @@
 import logging
-import traceback
 from pathlib import Path
 from typing import Dict, Any
 
-from dask import delayed
-from distributed import Client, as_completed
+import xarray as xr
 
 from imc_pipeline import imcutil
 
-from .preprocess import preprocess
 
 log = logging.getLogger('owl.daemon.pipeline')
 
@@ -39,29 +36,18 @@ def main(
         [description]
     """
     # TODO: Complete the docstring
-
-    client = Client.current()
-
     log.info('Starting IMC pipeline.')
 
     output_path.mkdir(parents=True, exist_ok=True)
 
-    img_list, img_path = preprocess(input_path, output_path)
+    # img_list, img_path = preprocess(input_path, output_path)
 
-    futures = []
-    for img_index , img_file in enumerate(img_list):
-        res = delayed(imcutil.process_image)(
-            img_file, n_buff, segmentation, img_path[img_index]
-        )
-        fut = client.compute(res)
-        futures.append(fut)
+    ds = xr.open_zarr(f"{input_path}")
+    acqs = ds.attrs['meta'][0]['acquisitions']
 
-    for fut in as_completed(futures):
-        if not fut.exception():
-            log.info(fut.result())
-        else:
-            log.error(fut.exception())
-            tb = fut.traceback()
-            log.error(traceback.format_tb(tb))
+    for acq in acqs:
+        output = output_path / input_path.stem / acq
+        res = imcutil.process_image(input_path, acq, n_buff, segmentation, output)
+        res.compute()
 
     log.info('IMC pipeline finished.')

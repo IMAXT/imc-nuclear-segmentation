@@ -20,10 +20,10 @@ extra_pip_packages: imc-pipeline
 #output_path: /home/darius01/myDisk1/myProjects/medical/imaxt/imc/OUTPUT_OME_multi
 
 # zarr TEST (ref 43 for all)
-input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/imc_zarr/STPT1_Axio4_20200508-143701-685025.zarr'
+input_path: /Users/eglez/data/imaxt/imc/STPT1_Axio4_20200508-143701-685025
 #input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/imc_zarr/STPT2_Axio10_20200424-145300-100633.zarr'
 #input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/imc_zarr/STPT3_Axio11_20200419-154014-748612.zarr'
-output_path: /home/darius01/myDisk1/myProjects/medical/imaxt/imc/OUTPUT_ZARR_02
+output_path: /Users/eglez/data/imaxt/imc/output
 
 # flux-estimation (mean pixel intensities) related parameters
 n_buff: 1

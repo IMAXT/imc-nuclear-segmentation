@@ -40,68 +40,20 @@ def check_zarr(input_path: Path):
     return (input_path / '.zgroup').exists()
 
 
-def read_individual_zarr_xarray_as_a_list(input_path: Path, output_path: Path):
-
-    # clear screen
-    os.system('clear')
-
-    # on terminal display
-    print('\t\t ------------------------------------------------- ')
-    print('\t\t| STEP . 1: Reading ZARR file aqcuisitions (RoIs) |')
-    print('\t\t ------------------------------------------------- ')
-
-    # input zarr file name
-    # note: 'input_path' is a Python 3.7 Path object and has to be converted to string
-    zarr_file = str(input_path)
-
-    # reading Zarr file (all ROIs at once)
-    ds = xr.open_zarr(zarr_file)
-
-    # extract list of individual acquisition (ROI)
-    # e.g. q_ids = ['Q001' , 'Q002' , 'Q003' , ...]
+def read_individual_zarr_xarray_as_a_list(input_path: Path):
+    ds = xr.open_zarr(f"{zarr_file}")
     q_ids = ds.attrs['meta'][0]['acquisitions']
-
-    # reading Zaar file (now as a list of individual ROIs)
-    # e.g. ds_q = [ data'Q001' , data'Q002' , data'Q003' , ...]
-    ds_q = list()
-    q_ids_validity = list()  # some of the q_ids are broken and therefore have a keyword 'invalid'
-    for q_id_index , q_id in enumerate(q_ids):
-        ds_q.append(
-            xr.open_zarr(zarr_file, group=q_id)
-        )
-        validity = ds_q[q_id_index].attrs['meta'][0]['q_data_source']
-        q_ids_validity.append(validity)
-
-    # only keep valid acquisitions
-    for index, key in enumerate(q_ids_validity):
-        if key == 'invalid':
-            q_ids_validity[index] = False
-        else:
-            q_ids_validity[index] = True
-
-    # filter out 'invalid' acquisitions
-    q_ids = [x for x, y in zip(q_ids, q_ids_validity) if y]
-    ds_q = [x for x, y in zip(ds_q, q_ids_validity) if y]
-
-    return q_ids, ds_q
+    ds_q_all = [xr.open_zarr(f"{zarr_file}", group=q_id) for q_id in q_ids]
+    ds_q = [ds for ds in ds_q if ds.attrs['meta'][0]['q_data_source']!="invalid"]
+    return ds_q
 
 
-def create_zarr_output_folders(input_path: Path, output_path: Path, q_ids):
-
-    # on terminal display
-    print('\t\t ------------------------------------------------------------- ')
-    print('\t\t| STEP . 2: Creating ZARR output folders and assign filenames |')
-    print('\t\t ------------------------------------------------------------- ')
-
-    # extract zarr filename only from the zarr_file full path
-    zarr_file = str(input_path)
-    zarr_fileName = zarr_file.split("/")[-1]
-
+def create_zarr_output_folders(input_path: Path, output_path: Path, q_ids: List):
     # setting output forlder names
-    output_folderName = zarr_fileName.replace('.zarr', '')
+    output_folderName = input_path.stem
     output_folderName_Pathlist = list()
 
-    output_CUBEfileName = zarr_fileName.replace('.zarr', '') + '_CUBE.tif'
+    output_CUBEfileName = output_folderName + '_CUBE.tif'
     output_CUBEfileName_Pathlist = list()
     # creating output folders for each acquisition (roi)
     for each_roi in q_ids:
@@ -204,15 +156,9 @@ def save_master_zarr_data_cube_as_big_tiff(q_ids_masterDict, q_ids_channelNameLi
 # zarr reader (new)
 def create_cube_zarr(input_path: Path, output_path: Path):
 
-    print('\n ***************************************************************\n')
-    print(' ----> FUNC: create_cube_zarr(input_path: Path, output_path: Path): <----')
-    print('input_path\t', input_path)
-    print('output_path\t', output_path)
+    log.info("Creating Zarr cube %s, %s", input_path, output_path)
 
-    #  S T E P . 1 (read zarr file)
-    # reading ROIs (acquisitions ; q_ids) and their associated data (ds_q) as python list objects
-    q_ids, ds_q = read_individual_zarr_xarray_as_a_list(input_path, output_path)
-    print("\n | q_ids |", q_ids , 'Also see |ds_q| for information on zarr arrays associated with individual |q_ids|.')
+    ds_q = read_individual_zarr_xarray_as_a_list(input_path)
 
     #  S T E P . 2: Creating output folders and get a list of unique filenames (output path + full name) for each ROI (acquisition)
     output_CUBEfileName_Pathlist = create_zarr_output_folders(input_path, output_path, q_ids)

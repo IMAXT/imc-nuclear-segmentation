@@ -1,17 +1,19 @@
 import logging
 import random
-from typing import List
+from pathlib import Path
+from typing import Dict, List
 
 import cv2
 import numpy as np
+import xarray as xr
 from astropy.table import Table
+from dask import delayed
 from PIL import Image
 from scipy import ndimage
 from scipy.ndimage.filters import gaussian_filter
 from scipy.sparse import csr_matrix
 from skimage.feature import peak_local_max
 from skimage.morphology import watershed
-from imaxt_image.io import TiffImage
 
 from .contour import Contour
 
@@ -693,7 +695,7 @@ def create_t_final(
 
 
 def create_mask_image(labels):
-    """ ?? TO BE ADDED LATER ??
+    """?? TO BE ADDED LATER ??
 
     Parameters
     ----------
@@ -751,12 +753,12 @@ def normalize_channel(img, norm_factor):
     [numpy array]
         Single channel IMC, normalised 8-bit channel
     """
-
-    # make sure input image data type is 'uint16' (in case it is 'float32')
-    img = img.astype(np.uint16)
+    assert img.dtype == "uint16"
 
     img_norm = _normalize_minmax(img, 0, (2 ** 16 - 1))
-    img_8bit = _normalize_minmax(img_norm * norm_factor, 0, (2 ** 8 - 1), dtype=np.uint8)
+    img_8bit = _normalize_minmax(
+        img_norm * norm_factor, 0, (2 ** 8 - 1), dtype=np.uint8
+    )
     return img_8bit
 
 
@@ -775,15 +777,12 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
     [numpy array]
         Single channel / 8-bit / normalised (if necessary) version of the input image
     """
+    assert image.dtype == "uint16"
 
     # check if image *is not* 8-bit
-    if np.max(image) >= 2**8:
-
-        # make sure input image data type is 'uint16' (in case it is 'float32')
-        image = image.astype(np.uint16)
-
+    if image.max() >= 2 ** 8:
         # convert image to 8-bit
-        image = _normalize_minmax(image, 0, (2**8 - 1), dtype=np.uint8)
+        image = _normalize_minmax(image, 0, (2 ** 8 - 1), dtype=np.uint8)
 
     # check if input image is single channel
     if len(image.shape) > 2:
@@ -792,7 +791,7 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
         gray = image
 
     # Calculate grayscale histogram
-    hist = cv2.calcHist([gray], [0], None, [2**8], [0, 2**8])
+    hist = cv2.calcHist([gray], [0], None, [2 ** 8], [0, 2 ** 8])
     hist_size = len(hist)
 
     # Calculate cumulative distribution from the histogram
@@ -803,7 +802,7 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
 
     # Locate points to clip
     maximum = accumulator[-1]
-    clip_hist_percent *= (maximum / 100.0)
+    clip_hist_percent *= maximum / 100.0
     clip_hist_percent /= 2.0
 
     # Locate left cut
@@ -817,44 +816,20 @@ def automatic_brightness_and_contrast(image, clip_hist_percent=1):
         maximum_gray -= 1
 
     # Calculate alpha and beta values
-    alpha = (2**8 - 1) / (maximum_gray - minimum_gray)
+    alpha = (2 ** 8 - 1) / (maximum_gray - minimum_gray)
     beta = -minimum_gray * alpha
 
-    '''
-    # Calculate new histogram with desired range and show histogram
-    new_hist = cv2.calcHist([gray],[0],None,[256],[minimum_gray,maximum_gray])
-    plt.plot(hist)
-    plt.plot(new_hist)
-    plt.xlim([0,256])
-    plt.show()
-    '''
-
     auto_result = cv2.convertScaleAbs(gray, alpha=alpha, beta=beta)
-    # auto_result_gray = cv2.cvtColor(auto_result, cv2.COLOR_BGR2GRAY)
 
-    return (auto_result, alpha, beta)
-
-
-# find number of channels
-def get_frames(cube: Image) -> List[np.ndarray]:
-    """Extract all channels in an Image data cube
-
-    Parameters
-    ----------
-    cube
-        data cube
-
-    Returns
-    -------
-    list of images
-    """
-    # all_frames = [*map(np.array, ImageSequence.Iterator(cube))]
-    all_frames = TiffImage(cube).asarray()
-    return all_frames
+    return auto_result
 
 
-def get_pseudo_opecv_8bit_flat_image(
-    imgOpencv_16bit, ain_automatic_image_normalization, ain_image_normalization_factor, aic_apply_intensity_correction, aic_sigma
+def get_pseudo_opencv_8bit_flat_image(
+    imgOpencv_16bit,
+    ain_automatic_image_normalization,
+    ain_image_normalization_factor,
+    aic_apply_intensity_correction,
+    aic_sigma,
 ):
     """The function correct for the observed pixel intensity inhomogeneity across the image
 
@@ -884,7 +859,9 @@ def get_pseudo_opecv_8bit_flat_image(
         if ain_automatic_image_normalization is True:
 
             # Apply auto-normalization
-            imgOpencv_8bit_flat_normalized , _, _ = automatic_brightness_and_contrast(imgOpencv_16bit)
+            imgOpencv_8bit_flat_normalized = automatic_brightness_and_contrast(
+                imgOpencv_16bit
+            )
 
         # if automatic normalization key is FALSE
         else:
@@ -921,7 +898,41 @@ def get_pseudo_opecv_8bit_flat_image(
     return imgOpencv_8bit_flat_normalized
 
 
-def process_image(img_file, n_buff, segmentation, outputPath):
+@delayed
+def sink(
+    ref_frame_8bit_flat_normalized,
+    ref_frame_8bit_flat_normalized_copy,
+    ref_frame_8bit,
+    draft_ref_frame_8bit_flat_normalized,
+    t_final,
+    mask_img,
+    name,
+    output_path,
+):
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    cv2.imwrite(f"{output_path}/{name}_ref_flat.tif", ref_frame_8bit_flat_normalized)
+    cv2.imwrite(f"{output_path}/{name}_ref.jpg", ref_frame_8bit)
+
+    # Refining the output table catalog: removing unused rows
+    log.info("Writing output table")
+    t_final.remove_rows(np.where(t_final["X"] == 0)[0])
+    t_final.write(f"{output_path}/{name}_cat.fits", overwrite=True)
+    t_final.write(f"{output_path}/{name}_cat.csv", overwrite=True)
+
+    log.info("Writing masked image")
+    mask_img.save(f"{output_path}/{name}_mask.tif")
+
+    log.info("Writing draft image")
+    cv2.imwrite(f"{output_path}/{name}_draft_cnt.tif", ref_frame_8bit_flat_normalized_copy)
+    cv2.imwrite(f"{output_path}/{name}_draft.tif", draft_ref_frame_8bit_flat_normalized)
+
+    return True
+
+
+def process_image(
+    input_path: Path, group: str, n_buff: int, segmentation: Dict, output_path: Path
+):
     """The function reads segmentation parameters and performs
     watershed segmentation.
 
@@ -957,43 +968,44 @@ def process_image(img_file, n_buff, segmentation, outputPath):
         Name of recorded catalog
     """
     # read 16-bit data cube
-    # img_cube = Image.open(img_file)
-    img_name = img_file.name.replace(".tiff", "")
+    # img_name = img_file.name.replace(".tiff", "")
 
-    all_frames = get_frames(img_file)
+    ds = xr.open_zarr(f"{input_path}", group=group)
+    status = ds.attrs["meta"][0]["q_data_source"]
+    if status == "invalid":
+        return delayed(False)
 
-    log.info("Processing %s, n_tot_channel: %s", img_file, len(all_frames))
-    ain_automatic_image_normalization = segmentation["ain_automatic_image_normalization"]
+    ds_q = ds[group].astype("uint16")
+
+    log.info("Processing %s[%s], n_tot_channel: %s", input_path, group, len(ds_q))
+    ain_automatic_image_normalization = segmentation[
+        "ain_automatic_image_normalization"
+    ]
     ain_image_normalization_factor = segmentation["ain_image_normalization_factor"]
     aic_apply_intensity_correction = segmentation["aic_apply_intensity_correction"]
     aic_sigma = segmentation["aic_sigma"]
-    ref_channel = segmentation.pop("ref_channel")
-    ref_frame = all_frames[ref_channel - 1]
+    ref_channel = segmentation["ref_channel"]
+    ref_frame = ds_q[ref_channel - 1].data
 
-    # for visualisation only
-    # ------------------------------------------------------------------------------
     if ain_automatic_image_normalization:
-        ref_frame_8bit, _ , _ = automatic_brightness_and_contrast(ref_frame)
+        ref_frame_8bit = delayed(automatic_brightness_and_contrast)(ref_frame)
     else:
-        ref_frame_8bit = normalize_channel(ref_frame, ain_image_normalization_factor)
-    # -------------------------------------------------------------------------------
+        ref_frame_8bit = delayed(normalize_channel)(
+            ref_frame, ain_image_normalization_factor
+        )
 
     perform_full_analysis = segmentation["perform_full_analysis"]
 
     # create pseudo_flat_field_corrected ocv_8-bit image from ocv_16-bit image
-    ref_frame_8bit_flat_normalized = get_pseudo_opecv_8bit_flat_image(
-        ref_frame, ain_automatic_image_normalization, ain_image_normalization_factor, aic_apply_intensity_correction, aic_sigma
+    ref_frame_8bit_flat_normalized = delayed(get_pseudo_opencv_8bit_flat_image)(
+        ref_frame,
+        ain_automatic_image_normalization,
+        ain_image_normalization_factor,
+        aic_apply_intensity_correction,
+        aic_sigma,
     )
 
-    out = outputPath
-    out.mkdir(exist_ok=True)
-
-    out = outputPath / "reference"
-    out.mkdir(exist_ok=True)
-    cv2.imwrite(f"{out}/flat_{img_name}.tif", ref_frame_8bit_flat_normalized)
-    cv2.imwrite(f"{out}/{img_name}.jpg", ref_frame_8bit)
-
-    img_binary = get_binary_image(
+    img_binary = delayed(get_binary_image)(
         ref_frame_8bit_flat_normalized,
         segmentation["gb_ksize"],
         segmentation["gb_sigma"],
@@ -1001,7 +1013,7 @@ def process_image(img_file, n_buff, segmentation, outputPath):
         segmentation["adapThresh_constant"],
     )  # <---------------------------------------------- change here
 
-    labels = apply_wShed_and_get_cluster_labels(
+    labels = delayed(apply_wShed_and_get_cluster_labels)(
         ref_frame_8bit_flat_normalized,
         img_binary,
         segmentation["min_distance"],
@@ -1011,59 +1023,46 @@ def process_image(img_file, n_buff, segmentation, outputPath):
         segmentation["adapThresh_constant"],
     )  # <-------------------- change here
 
-    mask_img = create_mask_image(labels)
-    out = outputPath / "mask"
-    out.mkdir(exist_ok=True)
-    mask_img.save(f"{out}/{img_name}_mask.tif")
+    mask_img = delayed(create_mask_image)(labels)
 
-    out_mask_each_cell = outputPath / "mask_each_cell"
-    out_mask_each_cell.mkdir(exist_ok=True)
+    out_mask_each_cell = output_path / "mask_each_cell"
+    out_mask_each_cell.mkdir(parents=True, exist_ok=True)
 
     # An image where contour lines are overlaid on detected cells (visualization purpose only)
-    ref_frame_8bit_flat_normalized_copy = ref_frame_8bit_flat_normalized.copy()
-    ref_frame_8bit_flat_normalized_copy = cv2.cvtColor(
-        ref_frame_8bit_flat_normalized_copy, cv2.COLOR_GRAY2BGR
+    # ref_frame_8bit_flat_normalized_copy = ref_frame_8bit_flat_normalized.copy()
+    ref_frame_8bit_flat_normalized_copy = delayed(cv2.cvtColor)(
+        ref_frame_8bit_flat_normalized, cv2.COLOR_GRAY2BGR
     )
 
-    t_final = create_t_final(
+    t_final = delayed(create_t_final)(
         labels,
         ref_frame,
-        all_frames,
+        ds_q.data,
         n_buff,
         out_mask_each_cell,
         perform_full_analysis,
         ref_frame_8bit_flat_normalized_copy,
     )
 
-    log.info("Writing output table and masked image")
-
-    # Refining the output table catalog: removing unused rows
-    t_final.remove_rows(np.where(t_final["X"] == 0)[0])
-    out = outputPath / "catalogue"
-    out.mkdir(exist_ok=True)
-    t_final.write(f"{out}/{img_name}.fits", overwrite=True)
-    t_final.write(f"{out}/{img_name}.csv", overwrite=True)
-    # ------------------------------
     # draft image: create a draft image and overlay detected objectes (visualisation only)
-    draft_ref_frame_8bit_flat_normalized = create_draft_RGB_image_for_visualization(
-        ref_frame_8bit_flat_normalized, t_final
-    )
-    # draft image: write on disk
-    out = outputPath / "reference"
-    out.mkdir(exist_ok=True)
+    draft_ref_frame_8bit_flat_normalized = delayed(
+        create_draft_RGB_image_for_visualization
+    )(ref_frame_8bit_flat_normalized, t_final)
 
-    # If Quick-Mode, put a stamp on draft images
     if not perform_full_analysis:
+        ref_frame_8bit_flat_normalized_copy = delayed(stamp_image)(ref_frame_8bit_flat_normalized_copy, t_final)
+        draft_ref_frame_8bit_flat_normalized = delayed(stamp_image)(draft_ref_frame_8bit_flat_normalized, t_final)
 
-        stamp_image(ref_frame_8bit_flat_normalized_copy, t_final)
-        stamp_image(draft_ref_frame_8bit_flat_normalized, t_final)
-
-    cv2.imwrite(f"{out}/draft_cnt_{img_name}.tif", ref_frame_8bit_flat_normalized_copy)
-    cv2.imwrite(f"{out}/draft_{img_name}.tif", draft_ref_frame_8bit_flat_normalized)
-
-    # -----------------------------------------------------------------------------
-    # cv2.imwrite('./test_mask.jpg', masked_image)
-    return f"{out}/{img_name}.fits"
+    return sink(
+        ref_frame_8bit_flat_normalized,
+        ref_frame_8bit_flat_normalized_copy,
+        ref_frame_8bit,
+        draft_ref_frame_8bit_flat_normalized,
+        t_final,
+        mask_img,
+        input_path.stem,
+        output_path,
+    )
 
 
 def map_uint16_to_uint8_skimage(img_16bit):
@@ -1084,8 +1083,9 @@ def map_uint16_to_uint8_skimage(img_16bit):
     # http://scikit-image.org/docs/dev/user_guide/data_types.html
 
     # # library
-    from skimage import img_as_ubyte
     import warnings
+
+    from skimage import img_as_ubyte
 
     # conversion
     with warnings.catch_warnings():
