@@ -16,7 +16,6 @@ requirements = [
     'scikit-image',
     'astropy',
     'pillow',
-    'imaxt-image',
 ]
 
 setup_requirements = ['pytest-runner', 'flake8']
