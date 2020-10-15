@@ -12,14 +12,6 @@ Main (:mod:`main`)
     :show-inheritance:
 
 
-Preprocess (:mod:`preprocess`)
-------------------------------
-
-.. automodule:: imc_pipeline.preprocess
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 IMCUtil (:mod:`imcutil`)
 ------------------------
 
