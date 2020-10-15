@@ -4,7 +4,7 @@ stages:
 
 test:
   stage: test
-  image: imaxt/casu-notebook:latest
+  image: imaxt/owl-pipeline:latest
   tags:
     - python
   script:
