@@ -434,6 +434,8 @@ def extract_features_and_update_catalog(
                 and (yc - hRect - n_buff) > 0
                 and (xc + wRect + n_buff) < imgW
                 and (yc + hRect + n_buff) < imgH
+                and hRect > 2
+                and wRect > 2
             ):
 
                 # Positional
@@ -462,7 +464,7 @@ def extract_features_and_update_catalog(
                     # area related
                     t_final["area_cnt"][n_cell] = c.area
                     t_final["area_minCircle"][n_cell] = c.mincircle_area
-                    t_final["area_ellipse"][n_cell] = c.area_ellipse
+                    t_final["area_ellipse"][n_cell] = int(c.area_ellipse)
 
                     # fitted ellipse
                     t_final["ell_angle"][n_cell] = c.rotation_angle
