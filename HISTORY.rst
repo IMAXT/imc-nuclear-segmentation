@@ -2,6 +2,16 @@
 History
 =======
 
+0.10.x
+------
+
+* Add support for Zarr files.
+* Remove support for TIFF files.
+* Support for OpenCV 4.4.
+* Automatic normalisation factor.
+* Behaviour changed back so all RoIs are now processed
+  in one run.
+
 0.3.2 (2020-06-01)
 ------------------
 
