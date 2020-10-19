@@ -2,7 +2,7 @@
 History
 =======
 
-0.10.x
+0.10.0
 ------
 
 * Add support for Zarr files.
