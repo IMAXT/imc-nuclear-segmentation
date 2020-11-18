@@ -719,29 +719,11 @@ def create_mask_image(labels):
     return im
 
 
-# clippingng the (100 - 99.7)% of most brightest pixels and re-assign their pixel values to the max of 99.7% pixels
+# clippingng the (100 - 99.7)% of most brightest pixels and
+# re-assign their pixel values to the max of 99.7% pixels
 def clipping_img16bit_pixel_val(img_16bit, clip_cut_percent=99.7):
-
-    # step.1: make a deep copy
-    img = img_16bit.copy()
-    img_shape = img.shape
-
-    # step.1: image flattening (2D -> 1D)
-    a = img.flatten()
-
-    # step.3: find max pixel values, after clipping e.g. 95% of data (keeping the first 95%)
-    # 'clip_cut_percentin' is in percent; 100 percent means keeping all data and thus no change
-    max_clipped_pixel_val = np.percentile(a, clip_cut_percent)
-    max_clipped_pixel_val = int(max_clipped_pixel_val)
-
-    # step.4: clip the original image array using the above estimated 'max_clipped_pixel_val'
-    min_pixel_val = 0
-    a_clipped = np.clip(a, min_pixel_val, max_clipped_pixel_val)
-
-    # step.5: re-shape 'a' to original shape
-    img_clipped = a_clipped.reshape(img_shape)
-
-    return img_clipped
+    max_val = np.percentile(img_16bit, clip_cut_percent)
+    return img_16bit.clip(0, int(max_val))
 
 
 def _normalize_minmax(
