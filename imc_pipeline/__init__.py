@@ -3,4 +3,4 @@ from .schema import schema  # noqa: F401
 
 __author__ = 'Ali Dariush'
 __email__ = 'adariush@ast.cam.ac.uk'
-__version__ = '0.10.1'
+__version__ = '0.10.2'
