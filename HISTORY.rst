@@ -2,9 +2,10 @@
 History
 =======
 
-0.10.0
-------
+0.10
+----
 
+* min_distance can now take values 1 to 10.
 * Add support for Zarr files.
 * Remove support for TIFF files.
 * Support for OpenCV 4.4.
