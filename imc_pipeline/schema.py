@@ -15,7 +15,7 @@ segmentation = vo.Schema(
     {
         vo.Optional("perform_full_analysis", default=True): bool,
         vo.Required("ref_channel"): vo.All(int, vo.Range(min=1)),
-        vo.Optional("min_distance", default=3): vo.All(int, vo.Range(min=3, max=10)),
+        vo.Optional("min_distance", default=3): vo.All(int, vo.Range(min=1, max=10)),
         vo.Optional("gb_ksize", default=0): vo.All(int, vo.Range(min=0, max=10), Odd()),
         vo.Optional("gb_sigma", default=2): vo.All(
             vo.Any(int, float), vo.Range(min=0, max=10)
