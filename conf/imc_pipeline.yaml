@@ -3,30 +3,8 @@ version: 1
 name: imc
 extra_pip_packages: imc-pipeline
 
-# TEST OK
-#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-normal-ref32'
-#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/Fatima_Qosaj_22MAY2020/data-05' # ref#36 bright
-#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/Giulia_Lerda_04FEB2020' # ref#34
-#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-single-ome-small-ref25'
-
-
-
-
-#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-single-ome-large-ref43'
-#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-multi-ome-large-ref43'
-
-# multi OME test small (ref 25)
-#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/meds1_a_imaxtapp/CM1-0018/IMC/tiff-multi-ome-small-ref25'
-#output_path: /home/darius01/myDisk1/myProjects/medical/imaxt/imc/OUTPUT_OME_multi
-
-# zarr TEST (ref 43 for all)
-
-#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/imc_zarr/STPT2_Axio10_20200424-145300-100633.zarr'
-#input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/imc_zarr/STPT3_Axio11_20200419-154014-748612.zarr'
-
-# zarr2 TEST
-input_path: '/home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc-data/imc_zarr2/STPT4_Axio18_20200415-152904-430589.zarr'
-output_path: /home/darius01/myDisk1/myProjects/medical/imaxt/imc/imc_zarr2_server_version
+input_path: input_path
+output_path: output_path
 
 # flux-estimation (mean pixel intensities) related parameters
 n_buff: 1
@@ -34,7 +12,7 @@ n_buff: 1
 # segmentation-related parameters
 segmentation:
   perform_full_analysis: True # if False, only a draft image is produced with detected cells overlaid on the reference (nuclear) channel
-  ref_channel: 43 # nuclear channel to be used for segmentation
+  ref_channel_name: 193 # nuclear channel to be used for segmentation
   min_distance: 3 # watershed segmentation
   gb_ksize: 0 # gaussian blur kernel size (for denoising)
   gb_sigma: 2.1 # gaussian blur sigma (for denoising)

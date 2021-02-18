@@ -1,4 +1,5 @@
 import logging
+import json
 import random
 from pathlib import Path
 from typing import Dict, List
@@ -937,10 +938,25 @@ def sink(
     mask_img.save(f"{output_path}/{name}_mask.tif")
 
     log.info("Writing draft image")
-    cv2.imwrite(f"{output_path}/{name}_draft_cnt.tif", ref_frame_8bit_flat_normalized_copy)
+    cv2.imwrite(
+        f"{output_path}/{name}_draft_cnt.tif", ref_frame_8bit_flat_normalized_copy
+    )
     cv2.imwrite(f"{output_path}/{name}_draft.tif", draft_ref_frame_8bit_flat_normalized)
 
     return True
+
+
+def get_channels(ds):
+    return ds.meta[0]["q_channels"]
+
+
+def get_channel_number(channels, channel_nane):
+    metal_target = [ch["metal"] + " " + ch["target"] for ch in channels]
+    channel_no = [i for i, item in enumerate(metal_target) if channel_nane in item]
+    if len(channel_no) == 0:
+        return len(metal_target) - 1
+    else:
+        return channel_no[-1]
 
 
 def process_image(
@@ -989,6 +1005,9 @@ def process_image(
         return delayed(False)
 
     ds_q = ds[group].astype("uint16")
+    channels = get_channels(ds)
+    with open(output_path / "channels.json") as fh:
+        fh.write(json.dumps(channels))
 
     log.info("Processing %s[%s], n_tot_channel: %s", input_path, group, len(ds_q))
     ain_automatic_image_normalization = segmentation[
@@ -997,8 +1016,9 @@ def process_image(
     ain_image_normalization_factor = segmentation["ain_image_normalization_factor"]
     aic_apply_intensity_correction = segmentation["aic_apply_intensity_correction"]
     aic_sigma = segmentation["aic_sigma"]
-    ref_channel = segmentation["ref_channel"]
-    ref_frame = ds_q[ref_channel - 1].data
+    ref_channel_name = segmentation["ref_channel_name"]
+    ref_channel = get_channel_number(channels, ref_channel_name)
+    ref_frame = ds_q[ref_channel].data
 
     if ain_automatic_image_normalization:
         ref_frame_8bit = delayed(automatic_brightness_and_contrast)(ref_frame)
@@ -1063,8 +1083,12 @@ def process_image(
     )(ref_frame_8bit_flat_normalized, t_final)
 
     if not perform_full_analysis:
-        ref_frame_8bit_flat_normalized_copy = delayed(stamp_image)(ref_frame_8bit_flat_normalized_copy, t_final)
-        draft_ref_frame_8bit_flat_normalized = delayed(stamp_image)(draft_ref_frame_8bit_flat_normalized, t_final)
+        ref_frame_8bit_flat_normalized_copy = delayed(stamp_image)(
+            ref_frame_8bit_flat_normalized_copy, t_final
+        )
+        draft_ref_frame_8bit_flat_normalized = delayed(stamp_image)(
+            draft_ref_frame_8bit_flat_normalized, t_final
+        )
 
     return sink(
         ref_frame_8bit_flat_normalized,
