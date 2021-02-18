@@ -2,6 +2,11 @@
 History
 =======
 
+0.11
+----
+
+* Reference channel is now selected by matching string.
+
 0.10
 ----
 
