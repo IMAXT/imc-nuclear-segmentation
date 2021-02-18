@@ -1007,7 +1007,7 @@ def process_image(
     ds_q = ds[group].astype("uint16")
     channels = get_channels(ds)
     output_path.mkdir(parents=True, exist_ok=True)
-    with open(output_path / "channels.json") as fh:
+    with open(output_path / "channels.json", "w") as fh:
         fh.write(json.dumps(channels))
 
     log.info("Processing %s[%s], n_tot_channel: %s", input_path, group, len(ds_q))
