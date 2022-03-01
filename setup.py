@@ -12,7 +12,7 @@ requirements = [
     "xarray",
     "zarr",
     "voluptuous",
-    "opencv-python-headless==4.2.*",
+    "opencv-python-headless==4.3.*",
     "numpy",
     "scipy",
     "scikit-image",
