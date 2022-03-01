@@ -9,6 +9,8 @@ with open("HISTORY.rst") as history_file:
 requirements = [
     "dask",
     "distributed",
+    "xarray",
+    "zarr",
     "voluptuous",
     "opencv-python==4.4.*",
     "numpy",
