@@ -15,7 +15,7 @@ requirements = [
     "opencv-python-headless",
     "numpy",
     "scipy",
-    "scikit-image",
+    "scikit-image==0.18.*",
     "astropy",
     "pillow",
 ]
